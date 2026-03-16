@@ -1,4 +1,7 @@
 #include "pong.h"
+#include <GL/gl.h>
+#include <math.h>
+#include <stdio.h>
 
 void init_pong(Pong* pong, int width, int height)
 {
@@ -7,14 +10,56 @@ void init_pong(Pong* pong, int width, int height)
     init_pad(&(pong->left_pad), 0, height, RED_THEME);
     init_pad(&(pong->right_pad), width - 50, height, GREEN_THEME);
     init_ball(&(pong->ball), width / 2, height / 2);
+    pong->left_score = 0;
+    pong->right_score = 0;
 }
 
 void update_pong(Pong* pong, double time)
 {
+    Ball* b = &(pong->ball);
+
     update_pad(&(pong->left_pad), time);
     update_pad(&(pong->right_pad), time);
     update_ball(&(pong->ball), time);
     bounce_ball(pong);
+
+    if (b->x + b->radius < pong->left_pad.x) {
+    pong->right_score++;
+    init_ball(&(pong->ball), pong->width/2, pong->height/2);
+    }
+
+    if (b->x - b->radius > pong->right_pad.x + pong->right_pad.width) {
+    pong->left_score++;
+        init_ball(&(pong->ball), pong->width/2, pong->height/2);
+}
+}
+
+static void draw_score_lines(const Pong* pong)
+{
+    int i;
+
+    glColor3f(1.0, 1.0, 1.0);
+    glLineWidth(3);
+
+    // bal jatekos
+    for (i = 0; i < pong->left_score; i++) {
+        float x = 20 + i * 10;
+
+        glBegin(GL_LINES);
+        glVertex2f(x, 20);
+        glVertex2f(x, 50);
+        glEnd();
+    }
+
+    // jobb jatekos
+    for (i = 0; i < pong->right_score; i++) {
+        float x = pong->width - 20 - i * 10;
+
+        glBegin(GL_LINES);
+        glVertex2f(x, 20);
+        glVertex2f(x, 50);
+        glEnd();
+    }
 }
 
 void render_pong(Pong* pong)
@@ -22,6 +67,8 @@ void render_pong(Pong* pong)
     render_pad(&(pong->left_pad));
     render_pad(&(pong->right_pad));
     render_ball(&(pong->ball));
+
+    draw_score_lines(pong);
 }
 
 void set_left_pad_position(Pong* pong, float position)
@@ -98,3 +145,5 @@ void bounce_ball(Pong* pong)
         b->rotation_speed *= -1;
     }
 }
+
+

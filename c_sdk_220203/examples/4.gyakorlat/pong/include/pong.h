@@ -13,6 +13,8 @@ typedef struct Pong
 {
     int width;
     int height;
+    int left_score;
+    int right_score;
     Ball ball;
     Pad left_pad;
     Pad right_pad;
@@ -67,5 +69,11 @@ void set_ball_radius(Pong* pong, float radius);
  * Bounce the ball when necessary.
  */
 void bounce_ball(Pong* pong);
+
+/*
+Show the score with straight lines
+*/
+
+static void draw_score_lines(const Pong* pong);
 
 #endif /* PONG_H */

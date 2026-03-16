@@ -1,17 +1,22 @@
 #include "game.h"
 
 #include <GL/gl.h>
-
 #include <stdio.h>
+
+#define MIN_BALL_RADIUS 10
+#define MAX_BALL_RADIUS 60
+#define BALL_RADIUS_STEP 2
 
 void init_game(Game* game, int width, int height)
 {
     game->is_running = false;
     game->width = width;
     game->height = height;
+
     if (init_sdl(game) == false) {
         return;
     }
+
     init_opengl(game);
     init_pong(&(game->pong), width, height);
     game->last_update_time = (double)SDL_GetTicks() / 1000;
@@ -31,13 +36,9 @@ void destroy_game(Game* game)
     SDL_Quit();
 }
 
-
 void handle_game_events(Game* game)
 {
     SDL_Event event;
-    static bool is_mouse_down = false;
-    static int mouse_x = 0;
-    static int mouse_y = 0;
     int x;
     int y;
 
@@ -54,10 +55,17 @@ void handle_game_events(Game* game)
             case SDL_SCANCODE_S:
                 set_left_pad_speed(&(game->pong), +100);
                 break;
+            case SDL_SCANCODE_UP:
+                set_ball_radius(&(game->pong), game->pong.ball.radius + 2);
+                break;
+            case SDL_SCANCODE_DOWN:
+                set_ball_radius(&(game->pong), game->pong.ball.radius - 2);
+                break;
             default:
                 break;
             }
             break;
+
         case SDL_KEYUP:
             switch (event.key.keysym.scancode) {
             case SDL_SCANCODE_W:
@@ -68,25 +76,21 @@ void handle_game_events(Game* game)
                 break;
             }
             break;
+
         case SDL_MOUSEMOTION:
             SDL_GetMouseState(&x, &y);
             set_right_pad_position(&(game->pong), y);
             break;
+
         case SDL_MOUSEBUTTONDOWN:
             SDL_GetMouseState(&x, &y);
             set_ball_position(&(game->pong), x, y);
-            break;
-        case SDLK_UP:
-            
-            break;
-
-        case SDLK_DOWN:
-            
             break;
 
         case SDL_QUIT:
             game->is_running = false;
             break;
+
         default:
             break;
         }

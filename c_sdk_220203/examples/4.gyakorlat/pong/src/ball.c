@@ -54,11 +54,11 @@ void render_ball(Ball* ball)
     glEnd();
 
     // --- 🔴 FORGÁST JELZŐ VONAL ---
-    glColor3f(1.0, 0.0, 0.0);
-    glBegin(GL_LINES);
-        glVertex2f(0, 0);
-        glVertex2f(ball->radius, 0);
-    glEnd();
+    // glColor3f(1.0, 0.0, 0.0);
+// glBegin(GL_LINES);
+// glVertex2f(0, 0);
+// glVertex2f(ball->radius, 0);
+// glEnd();
 
     glPopMatrix();
 }
