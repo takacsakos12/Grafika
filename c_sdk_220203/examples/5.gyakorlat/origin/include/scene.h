@@ -4,7 +4,7 @@
 #include "camera.h"
 
 typedef struct Scene
-{
+{ float sphere_rotation_angle;
 } Scene;
 
 /**
