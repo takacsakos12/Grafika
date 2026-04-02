@@ -164,22 +164,24 @@ void handle_app_events(App* app)
             
             break;
         case SDL_MOUSEBUTTONDOWN:
-            is_mouse_down = true;
-            break;
-        case SDL_MOUSEMOTION:
-            SDL_GetMouseState(&x, &y);
-            if (is_mouse_down) {
-                rotate_camera(&(app->camera), mouse_x - x, mouse_y - y);
-            }
-            mouse_x = x;
-            mouse_y = y;
-            break;
-        case SDL_MOUSEBUTTONUP:
-            is_mouse_down = false;
-            break;
-        case SDL_QUIT:
-            app->is_running = false;
-            break;
+        {
+            if (event.button.button == SDL_BUTTON_LEFT) {
+            int win_w, win_h;
+            float world_x, world_y;
+
+            SDL_GetWindowSize(app->window, &win_w, &win_h);
+
+            x = event.button.x;
+            y = event.button.y;
+
+            world_x = (float)x / (float)win_w;
+            world_y = 1.0f - (float)y / (float)win_h;
+
+            app->camera.position.x = world_x;
+            app->camera.position.y = world_y;
+        }
+        break;
+}
         
         default:
             break;

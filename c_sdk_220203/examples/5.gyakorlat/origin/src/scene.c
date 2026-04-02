@@ -50,6 +50,92 @@ void render_scene(const Scene* scene)
 
     glEnd();
 
+    {
+    int i;
+    const int n = 20;
+    const float radius = 0.15f;
+    const float height = 0.4f;
+    const float PI = 3.1415926f;
+
+    glPushMatrix();
+    glTranslatef(1.4f, 0.5f, 0.2f);
+
+    glColor3f(0.7f, 0.7f, 0.7f);
+
+    /* palast */
+    glBegin(GL_TRIANGLE_STRIP);
+    for (i = 0; i <= n; i++) {
+        float angle = 2.0f * PI * i / n;
+        float x = radius * cosf(angle);
+        float y = radius * sinf(angle);
+
+        glVertex3f(x, y, 0.0f);
+        glVertex3f(x, y, height);
+    }
+    glEnd();
+
+    /* also kor */
+    glBegin(GL_TRIANGLE_FAN);
+    glVertex3f(0.0f, 0.0f, 0.0f);
+    for (i = 0; i <= n; i++) {
+        float angle = 2.0f * PI * i / n;
+        float x = radius * cosf(angle);
+        float y = radius * sinf(angle);
+        glVertex3f(x, y, 0.0f);
+    }
+    glEnd();
+
+    /* felso kor */
+    glBegin(GL_TRIANGLE_FAN);
+    glVertex3f(0.0f, 0.0f, height);
+    for (i = 0; i <= n; i++) {
+        float angle = 2.0f * PI * i / n;
+        float x = radius * cosf(angle);
+        float y = radius * sinf(angle);
+        glVertex3f(x, y, height);
+    }
+    glEnd();
+
+    {
+    int i;
+    const int n = 20;
+    const float radius = 0.15f;
+    const float height = 0.4f;
+    const float PI = 3.1415926f;
+
+    glPushMatrix();
+    glTranslatef(1.8f, 0.5f, 0.0f);
+
+    glColor3f(0.8f, 0.5f, 0.2f);
+
+    /* oldal */
+    glBegin(GL_TRIANGLE_FAN);
+    glVertex3f(0.0f, 0.0f, height);
+    for (i = 0; i <= n; i++) {
+        float angle = 2.0f * PI * i / n;
+        float x = radius * cosf(angle);
+        float y = radius * sinf(angle);
+        glVertex3f(x, y, 0.0f);
+    }
+    glEnd();
+
+    /* alja */
+    glBegin(GL_TRIANGLE_FAN);
+    glVertex3f(0.0f, 0.0f, 0.0f);
+    for (i = 0; i <= n; i++) {
+        float angle = 2.0f * PI * i / n;
+        float x = radius * cosf(angle);
+        float y = radius * sinf(angle);
+        glVertex3f(x, y, 0.0f);
+    }
+    glEnd();
+
+    glPopMatrix();
+}
+
+    glPopMatrix();
+}
+
     glColor3f(0.6, 0.6, 0.6);
 
     glPushMatrix();
@@ -85,6 +171,29 @@ void render_scene(const Scene* scene)
     }
 
     glPopMatrix();
+
+    int row, col;
+    float cell_size = 0.125f;
+
+    for (row = 0; row < 8; row++) {
+    for (col = 0; col < 8; col++) {
+        float x = col * cell_size;
+        float y = row * cell_size;
+
+        if ((row + col) % 2 == 0) {
+            glColor3f(0.9f, 0.9f, 0.9f);
+        } else {
+            glColor3f(0.2f, 0.2f, 0.2f);
+        }
+
+        glBegin(GL_QUADS);
+        glVertex3f(x, y, 0.0f);
+        glVertex3f(x + cell_size, y, 0.0f);
+        glVertex3f(x + cell_size, y + cell_size, 0.0f);
+        glVertex3f(x, y + cell_size, 0.0f);
+        glEnd();
+    }
+}
 }
 
 
