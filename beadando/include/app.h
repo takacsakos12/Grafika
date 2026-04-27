@@ -19,10 +19,15 @@ typedef struct App
     SDL_GLContext gl_context;
     bool is_running;
     double uptime;
+
+    bool key_w;
+    bool key_a;
+    bool key_s;
+    bool key_d;
+
     Camera camera;
     Scene scene;
 } App;
-
 /**
  * Initialize the application.
  */

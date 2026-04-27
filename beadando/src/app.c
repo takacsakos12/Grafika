@@ -11,6 +11,10 @@ void init_app(App* app, int width, int height)
     app->gl_context = NULL;
     app->is_running = true;
     app->uptime = 0.0;
+    app->key_w = false;
+    app->key_a = false;
+    app->key_s = false;
+    app->key_d = false;
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         fprintf(stderr, "SDL initialization error: %s\n", SDL_GetError());
@@ -53,6 +57,7 @@ void init_app(App* app, int width, int height)
 
     init_camera(&app->camera);
     init_scene(&app->scene);
+    SDL_SetRelativeMouseMode(SDL_TRUE);
 }
 
 void init_opengl()
@@ -125,9 +130,52 @@ void handle_app_events(App* app)
                 app->is_running = false;
                 break;
 
+            case SDLK_w:
+                app->key_w = true;
+                break;
+
+            case SDLK_a:
+                app->key_a = true;
+                break;
+
+            case SDLK_s:
+                app->key_s = true;
+                break;
+
+            case SDLK_d:
+                app->key_d = true;
+                break;
+
             default:
                 break;
             }
+            break;
+
+        case SDL_KEYUP:
+            switch (event.key.keysym.sym) {
+            case SDLK_w:
+                app->key_w = false;
+                break;
+
+            case SDLK_a:
+                app->key_a = false;
+                break;
+
+            case SDLK_s:
+                app->key_s = false;
+                break;
+
+            case SDLK_d:
+                app->key_d = false;
+                break;
+
+            default:
+                break;
+            }
+            break;
+
+        case SDL_MOUSEMOTION:
+            rotate_camera(&app->camera, event.motion.xrel, event.motion.yrel);
             break;
 
         case SDL_WINDOWEVENT:
@@ -150,6 +198,15 @@ void update_app(App* app)
     current_time = (double)SDL_GetTicks() / 1000.0;
     delta_time = current_time - app->uptime;
     app->uptime = current_time;
+
+    update_camera(
+        &app->camera,
+        delta_time,
+        app->key_w,
+        app->key_s,
+        app->key_a,
+        app->key_d
+    );
 
     update_scene(&app->scene, delta_time);
 }
