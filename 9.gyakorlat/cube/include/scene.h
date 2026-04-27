@@ -13,6 +13,11 @@ typedef struct Scene
     Material material;
     GLuint texture_id;
     float rotation_angle;
+
+    float pyramid_x;
+    float pyramid_y;
+    float pyramid_z;
+    int light_mode;
 } Scene;
 
 /**
@@ -23,7 +28,7 @@ void init_scene(Scene* scene);
 /**
  * Set the lighting of the scene.
  */
-void set_lighting();
+void set_lighting(const Scene* scene);
 
 /**
  * Set the current material.

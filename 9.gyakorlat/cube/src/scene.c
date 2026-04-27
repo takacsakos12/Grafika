@@ -28,14 +28,72 @@ void init_scene(Scene* scene)
 
     scene->material.shininess = 0.0;
     scene-> rotation_angle = 0.0;
+    scene->pyramid_x = 1.5f;
+    scene->pyramid_y = 0.0f;
+    scene->pyramid_z = 0.0f;
 }
 
-void set_lighting()
+vvoid set_lighting(const Scene* scene)
 {
-    float ambient_light[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-    float diffuse_light[] = { 1.0f, 1.0f, 1.0, 1.0f };
+    float ambient_light[]  = { 0.0f, 0.0f, 0.0f, 1.0f };
+    float diffuse_light[]  = { 0.0f, 0.0f, 0.0f, 1.0f };
     float specular_light[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-    float position[] = { 0.0f, 0.0f, 10.0f, 1.0f };
+    float position[]       = { 0.0f, 0.0f, 10.0f, 1.0f };
+
+    switch (scene->light_mode) {
+    case 1: // csak ambient
+        ambient_light[0] = 1.0f;
+        ambient_light[1] = 1.0f;
+        ambient_light[2] = 1.0f;
+        break;
+
+    case 2: // csak diffuse
+        diffuse_light[0] = 1.0f;
+        diffuse_light[1] = 1.0f;
+        diffuse_light[2] = 1.0f;
+        break;
+
+    case 3: // csak specular
+        specular_light[0] = 1.0f;
+        specular_light[1] = 1.0f;
+        specular_light[2] = 1.0f;
+        break;
+
+    case 4: // ambient + diffuse
+        ambient_light[0] = 0.3f;
+        ambient_light[1] = 0.3f;
+        ambient_light[2] = 0.3f;
+
+        diffuse_light[0] = 1.0f;
+        diffuse_light[1] = 1.0f;
+        diffuse_light[2] = 1.0f;
+        break;
+
+    case 5: // diffuse + specular
+        diffuse_light[0] = 1.0f;
+        diffuse_light[1] = 1.0f;
+        diffuse_light[2] = 1.0f;
+
+        specular_light[0] = 1.0f;
+        specular_light[1] = 1.0f;
+        specular_light[2] = 1.0f;
+        break;
+
+    case 6: // mindharom
+    default:
+        ambient_light[0] = 0.2f;
+        ambient_light[1] = 0.2f;
+        ambient_light[2] = 0.2f;
+
+        diffuse_light[0] = 1.0f;
+        diffuse_light[1] = 1.0f;
+        diffuse_light[2] = 1.0f;
+
+        specular_light[0] = 1.0f;
+        specular_light[1] = 1.0f;
+        specular_light[2] = 1.0f;
+        break;
+    }
 
     glLightfv(GL_LIGHT0, GL_AMBIENT, ambient_light);
     glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse_light);
@@ -81,9 +139,17 @@ void update_scene(Scene* scene)
 
 void render_scene(const Scene* scene)
 {
-    set_material(&(scene->material));
-    set_lighting();
+    Material red_material = scene->material;
+    Material green_material = scene->material;
+
+    set_lighting(scene);
     draw_origin();
+
+    red_material.diffuse.red = 1.0f;
+    red_material.diffuse.green = 0.0f;
+    red_material.diffuse.blue = 0.0f;
+
+    set_material(&red_material);
 
     glPushMatrix();
     glTranslatef(-1.5f, 0.0f, 0.0f);
@@ -91,8 +157,15 @@ void render_scene(const Scene* scene)
     draw_model(&(scene->cube));
     glPopMatrix();
 
+
+    green_material.diffuse.red = 0.0f;
+    green_material.diffuse.green = 1.0f;
+    green_material.diffuse.blue = 0.0f;
+
+    set_material(&green_material);
+
     glPushMatrix();
-    glTranslatef(1.5f, 0.0f, 0.0f);
+    glTranslatef(scene->pyramid_x, scene->pyramid_y, scene->pyramid_z);
     glRotatef(scene->rotation_angle, 0.0f, 0.0f, 1.0f);
     glScalef(0.3f, 0.3f, 0.3f);
     draw_model(&(scene->pyramid));

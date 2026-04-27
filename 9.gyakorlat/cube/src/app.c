@@ -125,6 +125,58 @@ void handle_app_events(App* app)
             case SDL_SCANCODE_D:
                 set_camera_side_speed(&(app->camera), -1);
                 break;
+            case SDL_SCANCODE_LEFT:
+                app->scene.pyramid_x -= 0.1f;
+                break;
+
+            case SDL_SCANCODE_RIGHT:
+                app->scene.pyramid_x += 0.1f;
+                break;
+
+            case SDL_SCANCODE_UP:
+                app->scene.pyramid_y += 0.1f;
+                break;
+
+            case SDL_SCANCODE_DOWN:
+                app->scene.pyramid_y -= 0.1f;
+                break;
+
+            case SDL_SCANCODE_Q:
+                app->scene.pyramid_z += 0.1f;
+                break;
+
+            case SDL_SCANCODE_E:
+                app->scene.pyramid_z -= 0.1f;
+                break;
+            case SDL_SCANCODE_1:
+                app->scene.light_mode = 1;
+                printf("Light mode: ambient only\n");
+                break;
+
+            case SDL_SCANCODE_2:
+                app->scene.light_mode = 2;
+                printf("Light mode: diffuse only\n");
+                break;
+
+            case SDL_SCANCODE_3:
+                app->scene.light_mode = 3;
+                printf("Light mode: specular only\n");
+                break;
+
+            case SDL_SCANCODE_4:
+                app->scene.light_mode = 4;
+                printf("Light mode: ambient + diffuse\n");
+                break;
+
+            case SDL_SCANCODE_5:
+                app->scene.light_mode = 5;
+                printf("Light mode: diffuse + specular\n");
+                break;
+
+            case SDL_SCANCODE_6:
+                app->scene.light_mode = 6;
+                printf("Light mode: ambient + diffuse + specular\n");
+                break;        
             default:
                 break;
             }
