@@ -1,11 +1,12 @@
 #include "camera.h"
+#include "scene.h"
 
 #include <GL/gl.h>
-#include <GL/glu.h>
 
 #include <math.h>
 
 #define PLAYER_HEIGHT 1.7
+#define PLAYER_RADIUS 0.35
 #define MOVE_SPEED 4.0
 #define MOUSE_SENSITIVITY 0.15
 
@@ -28,6 +29,7 @@ void init_camera(Camera* camera)
 
 void update_camera(
     Camera* camera,
+    const Scene* scene,
     double delta_time,
     bool move_forward,
     bool move_backward,
@@ -44,13 +46,16 @@ void update_camera(
     double move_z;
     double length;
 
-    yaw = degree_to_radian(camera->rotation.z);
+    float next_x;
+    float next_z;
 
-    forward_x = -sin(yaw);
-    forward_z = cos(yaw);
+    yaw = degree_to_radian(-camera->rotation.z);
 
-    right_x = -cos(yaw);
-    right_z = -sin(yaw);
+    forward_x = sin(yaw);
+    forward_z = -cos(yaw);
+
+    right_x = cos(yaw);
+    right_z = sin(yaw);
 
     move_x = 0.0;
     move_z = 0.0;
@@ -82,8 +87,22 @@ void update_camera(
         move_z /= length;
     }
 
-    camera->position.x += move_x * MOVE_SPEED * delta_time;
-    camera->position.z += move_z * MOVE_SPEED * delta_time;
+    next_x = (float)(camera->position.x + move_x * MOVE_SPEED * delta_time);
+    next_z = (float)(camera->position.z + move_z * MOVE_SPEED * delta_time);
+
+    /*
+        X es Z irany kulon ellenorzese.
+        Igy a jatekos tud csuszni a falak menten,
+        nem akad meg teljesen a sarkoknal.
+    */
+
+    if (!check_collision(scene, next_x, (float)camera->position.z, PLAYER_RADIUS)) {
+        camera->position.x = next_x;
+    }
+
+    if (!check_collision(scene, (float)camera->position.x, next_z, PLAYER_RADIUS)) {
+        camera->position.z = next_z;
+    }
 
     camera->position.y = PLAYER_HEIGHT;
 }

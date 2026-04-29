@@ -5,6 +5,8 @@
 
 #include <stdbool.h>
 
+typedef struct Scene Scene;
+
 typedef struct Camera
 {
     vec3 position;
@@ -17,6 +19,7 @@ void init_camera(Camera* camera);
 
 void update_camera(
     Camera* camera,
+    const Scene* scene,
     double delta_time,
     bool move_forward,
     bool move_backward,

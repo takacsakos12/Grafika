@@ -1,7 +1,7 @@
 #include "app.h"
 
 #include <GL/gl.h>
-#include <GL/glu.h>
+
 
 #include <stdlib.h>
 
@@ -108,7 +108,7 @@ void reshape(GLsizei width, GLsizei height)
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
 
-    gluPerspective(VIEWPORT_ASPECT, VIEWPORT_RATIO, 0.1, 1000.0);
+    glFrustum(-0.08, 0.08, -0.06, 0.06, 0.1, 1000.0);
 
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
@@ -201,6 +201,7 @@ void update_app(App* app)
 
     update_camera(
         &app->camera,
+        &app->scene,
         delta_time,
         app->key_w,
         app->key_s,
