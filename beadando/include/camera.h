@@ -2,7 +2,7 @@
 #define CAMERA_H
 
 #include "utils.h"
-
+#include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
 
 typedef struct Scene Scene;

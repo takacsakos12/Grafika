@@ -169,11 +169,10 @@ void init_scene(Scene* scene)
     scene->exit_door_collider_index = -1;
 
     /* Kulso falak */
-    add_collider(scene, 0.0f, -10.0f, 20.0f, 0.4f);
-    add_collider(scene, 0.0f,  10.0f, 20.0f, 0.4f);
-    add_collider(scene, -10.0f, 0.0f, 0.4f, 20.0f);
-    add_collider(scene,  10.0f, 0.0f, 0.4f, 20.0f);
-
+    add_collider(scene, 0.0f, -20.0f, 40.0f, 0.4f);
+    add_collider(scene, 0.0f,  20.0f, 40.0f, 0.4f);
+    add_collider(scene, -20.0f, 0.0f, 0.4f, 40.0f);
+    add_collider(scene,  20.0f, 0.0f, 0.4f, 40.0f);
     /* Belso falak */
     add_collider(scene, -3.0f, 0.0f, 0.4f, 8.0f);
     add_collider(scene,  4.0f, -2.0f, 0.4f, 6.0f);

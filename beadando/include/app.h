@@ -6,7 +6,7 @@
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
-
+#include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -17,6 +17,7 @@ typedef struct App
 {
     SDL_Window* window;
     SDL_GLContext gl_context;
+
     bool is_running;
     double uptime;
 
@@ -24,6 +25,13 @@ typedef struct App
     bool key_a;
     bool key_s;
     bool key_d;
+
+    bool show_help;
+
+    TTF_Font* font;
+    GLuint help_texture;
+    int help_texture_width;
+    int help_texture_height;
 
     Camera camera;
     Scene scene;
@@ -63,4 +71,6 @@ void render_app(App* app);
  */
 void destroy_app(App* app);
 
+static void create_help_texture(App* app);
+static void draw_help_overlay(const App* app);
 #endif /* APP_H */

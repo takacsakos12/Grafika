@@ -5,6 +5,151 @@
 
 #include <stdlib.h>
 
+static void create_help_texture(App* app)
+{
+    const char* help_text =
+    "HASZNÁLATI ÚTMUTATÓ\n\n"
+
+    "Cél:\n"
+    "Aktiváld a 3 energiagenerátort.\n"
+    "Ezután kinyílik a kijárati ajtó.\n\n"
+
+    "Irányítás:\n"
+    "Egér - nézelődés\n"
+    "W A S D - mozgás\n"
+    "E - interakció\n"
+    "+ / - - fényerő állítása\n"
+    "3 - Hard Mode be/ki\n"
+    "F1 - súgó be/ki\n"
+    "ESC - kilépés\n\n"
+
+    "Figyelem:\n"
+    "Hard Mode-ban köd csökkenti a látótávolságot.\n"
+    "Ha a drón észlel, a játék véget ér.";
+
+    SDL_Color text_color = {255, 255, 255, 255};
+
+    SDL_Surface* surface;
+    SDL_Surface* formatted_surface;
+
+    surface = TTF_RenderUTF8_Blended_Wrapped(
+        app->font,
+        help_text,
+        text_color,
+        700
+    );
+
+    if (surface == NULL) {
+        fprintf(stderr, "Help text render error: %s\n", TTF_GetError());
+        return;
+    }
+
+    formatted_surface = SDL_ConvertSurfaceFormat(surface, SDL_PIXELFORMAT_ABGR8888, 0);
+
+    if (formatted_surface == NULL) {
+        fprintf(stderr, "Surface convert error: %s\n", SDL_GetError());
+        SDL_FreeSurface(surface);
+        return;
+    }
+
+    app->help_texture_width = formatted_surface->w;
+    app->help_texture_height = formatted_surface->h;
+
+    glGenTextures(1, &app->help_texture);
+    glBindTexture(GL_TEXTURE_2D, app->help_texture);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA,
+        formatted_surface->w,
+        formatted_surface->h,
+        0,
+        GL_RGBA,
+        GL_UNSIGNED_BYTE,
+        formatted_surface->pixels
+    );
+
+    SDL_FreeSurface(formatted_surface);
+    SDL_FreeSurface(surface);
+}
+
+static void draw_help_overlay(const App* app)
+{
+    int x = 40;
+    int y = 40;
+    int padding = 20;
+
+    int w = app->help_texture_width;
+    int h = app->help_texture_height;
+
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+
+    glOrtho(0, 1024, 768, 0, -1, 1);
+
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    /* fekete háttérpanel */
+    glDisable(GL_TEXTURE_2D);
+    glColor4f(0.0f, 0.0f, 0.0f, 0.75f);
+
+    glBegin(GL_QUADS);
+    glVertex2i(x - padding, y - padding);
+    glVertex2i(x + w + padding, y - padding);
+    glVertex2i(x + w + padding, y + h + padding);
+    glVertex2i(x - padding, y + h + padding);
+    glEnd();
+
+    /* help szöveg textúra */
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, app->help_texture);
+
+    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+    glBegin(GL_QUADS);
+
+    glTexCoord2f(0.0f, 0.0f);
+    glVertex2i(x, y);
+
+    glTexCoord2f(1.0f, 0.0f);
+    glVertex2i(x + w, y);
+
+    glTexCoord2f(1.0f, 1.0f);
+    glVertex2i(x + w, y + h);
+
+    glTexCoord2f(0.0f, 1.0f);
+    glVertex2i(x, y + h);
+
+    glEnd();
+
+    glDisable(GL_TEXTURE_2D);
+    glDisable(GL_BLEND);
+
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+
+    glMatrixMode(GL_MODELVIEW);
+}
+
 void init_app(App* app, int width, int height)
 {
     app->window = NULL;
@@ -15,11 +160,23 @@ void init_app(App* app, int width, int height)
     app->key_a = false;
     app->key_s = false;
     app->key_d = false;
+    app->show_help = false;
+    app->font = NULL;
+    app->help_texture = 0;
+    app->help_texture_width = 0;
+    app->help_texture_height = 0;
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         fprintf(stderr, "SDL initialization error: %s\n", SDL_GetError());
         exit(1);
     }
+
+    if (TTF_Init() == -1) {
+    fprintf(stderr, "SDL_ttf initialization error: %s\n", TTF_GetError());
+    SDL_Quit();
+    exit(1);
+    }
+    
 
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
@@ -49,6 +206,15 @@ void init_app(App* app, int width, int height)
         SDL_Quit();
         exit(1);
     }
+    app->font = TTF_OpenFont("assets/fonts/arial.ttf", 22);
+
+    if (app->font == NULL) {
+    fprintf(stderr, "Font loading error: %s\n", TTF_GetError());
+    destroy_app(app);
+    exit(1);
+    }
+
+    create_help_texture(app);
 
     SDL_GL_SetSwapInterval(1);
 
@@ -145,6 +311,10 @@ void handle_app_events(App* app)
             case SDLK_d:
                 app->key_d = true;
                 break;
+            
+            case SDLK_F1:
+                app->show_help = !app->show_help;
+                break;   
 
             default:
                 break;
@@ -175,8 +345,10 @@ void handle_app_events(App* app)
             break;
 
         case SDL_MOUSEMOTION:
-            rotate_camera(&app->camera, event.motion.xrel, event.motion.yrel);
-            break;
+                if (!app->show_help) {
+                rotate_camera(&app->camera, event.motion.xrel, event.motion.yrel);
+                }
+                break;      
 
         case SDL_WINDOWEVENT:
             if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
@@ -212,6 +384,7 @@ void update_app(App* app)
     update_scene(&app->scene, delta_time);
 }
 
+
 void render_app(App* app)
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -223,12 +396,28 @@ void render_app(App* app)
 
     render_scene(&app->scene);
 
+    if (app->show_help) {
+        draw_help_overlay(app);
+    }
+
     SDL_GL_SwapWindow(app->window);
 }
 
 void destroy_app(App* app)
 {
     destroy_scene(&app->scene);
+
+    if (app->help_texture != 0) {
+        glDeleteTextures(1, &app->help_texture);
+        app->help_texture = 0;
+    }
+
+    if (app->font != NULL) {
+        TTF_CloseFont(app->font);
+        app->font = NULL;
+    }
+
+    TTF_Quit();
 
     if (app->gl_context != NULL) {
         SDL_GL_DeleteContext(app->gl_context);
