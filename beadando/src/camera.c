@@ -122,6 +122,21 @@ void set_view(const Camera* camera)
     );
 }
 
+void reset_camera(Camera* camera)
+{
+    camera->position.x = 0.0;
+    camera->position.y = PLAYER_HEIGHT;
+    camera->position.z = 0.0;
+
+    camera->rotation.x = 0.0;
+    camera->rotation.y = 0.0;
+    camera->rotation.z = 0.0;
+
+    camera->speed.x = 0.0;
+    camera->speed.y = 0.0;
+    camera->speed.z = 0.0;
+}
+
 void rotate_camera(Camera* camera, double horizontal, double vertical)
 {
     camera->rotation.z -= horizontal * MOUSE_SENSITIVITY;

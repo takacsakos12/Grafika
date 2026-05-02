@@ -29,5 +29,6 @@ void update_camera(
 
 void set_view(const Camera* camera);
 void rotate_camera(Camera* camera, double horizontal, double vertical);
+void reset_camera(Camera* camera);
 
 #endif /* CAMERA_H */

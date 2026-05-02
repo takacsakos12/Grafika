@@ -1,9 +1,12 @@
 #include "scene.h"
 #include "texture.h"
 #include "model.h"
+#include "camera.h"
 
+#define _USE_MATH_DEFINES
 #include <GL/gl.h>
 #include <stdio.h>
+#include <math.h>
 /* ---------- Scene helper functions ---------- */
 
 static void add_collider(Scene* scene, float x, float z, float width, float depth)
@@ -20,6 +23,13 @@ static void add_collider(Scene* scene, float x, float z, float width, float dept
 
     scene->collider_count++;
 }
+
+static const float drone_waypoints[DRONE_WAYPOINT_COUNT][2] = {
+    {-12.0f, -12.0f},
+    { 12.0f, -12.0f},
+    { 12.0f,  12.0f},
+    {-12.0f,  12.0f}
+};
 
 static void add_generator(Scene* scene, float x, float z)
 {
@@ -38,17 +48,18 @@ static void add_generator(Scene* scene, float x, float z)
 
 static void draw_floor(float size, GLuint texture)
 {
-    glDisable(GL_LIGHTING);
     glDisable(GL_CULL_FACE);
 
     glEnable(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, texture);
 
-    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
-    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+    glColor3f(1.0f, 1.0f, 1.0f);
 
     glBegin(GL_QUADS);
+
+    glNormal3f(0.0f, 1.0f, 0.0f);
 
     glTexCoord2f(0.0f, 0.0f);
     glVertex3f(-size, 0.0f, -size);
@@ -63,8 +74,6 @@ static void draw_floor(float size, GLuint texture)
     glVertex3f(-size, 0.0f, size);
 
     glEnd();
-
-    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
     glDisable(GL_TEXTURE_2D);
     glEnable(GL_CULL_FACE);
@@ -183,7 +192,10 @@ static void draw_wall(float x, float z, float width, float depth, GLuint texture
     glEnable(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, texture);
 
-    glColor3f(1.0, 1.0f, 1.0f);
+    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+    glColor3f(1.0f, 1.0f, 1.0f);
+
     draw_box(x, z, width, 3.0f, depth);
 
     glDisable(GL_TEXTURE_2D);
@@ -194,8 +206,6 @@ static void draw_exit_door(const Scene* scene)
     if (scene->exit_door_open) {
         return;
     }
-
-    glDisable(GL_LIGHTING);
     glDisable(GL_CULL_FACE);
 
     glEnable(GL_TEXTURE_2D);
@@ -344,6 +354,310 @@ void interact_scene(Scene* scene, float player_x, float player_z)
     printf("No interactable object nearby.\n");
 }
 
+void set_scene_lighting(const Scene* scene)
+{
+    float b = scene->brightness;
+
+    GLfloat ambient_light[] = {
+        0.05f * b,
+        0.05f * b,
+        0.07f * b,
+        1.0f
+    };
+
+    GLfloat diffuse_light[] = {
+        1.00f * b,
+        1.00f * b,
+        1.00f * b,
+        1.0f
+    };
+
+    GLfloat specular_light[] = {
+        0.20f * b,
+        0.20f * b,
+        0.20f * b,
+        1.0f
+    };
+
+    GLfloat light_position[] = {
+        0.0f,
+        8.0f,
+        0.0f,
+        1.0f
+    };
+
+    glEnable(GL_LIGHTING);
+    glEnable(GL_LIGHT0);
+
+    glLightfv(GL_LIGHT0, GL_AMBIENT, ambient_light);
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse_light);
+    glLightfv(GL_LIGHT0, GL_SPECULAR, specular_light);
+    glLightfv(GL_LIGHT0, GL_POSITION, light_position);
+
+    glEnable(GL_COLOR_MATERIAL);
+    glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+}
+
+void change_scene_brightness(Scene* scene, float amount)
+{
+    scene->brightness += amount;
+
+    if (scene->brightness > 2.0f) {
+        scene->brightness = 2.0f;
+    }
+
+    if (scene->brightness < 0.2f) {
+        scene->brightness = 0.2f;
+    }
+
+    printf("Brightness: %.1f\n", scene->brightness);
+}
+
+void apply_scene_fog(const Scene* scene)
+{
+    GLfloat fog_color[] = {0.10f, 0.11f, 0.12f, 1.0f};
+
+    if (scene->hard_mode) {
+        glEnable(GL_FOG);
+
+        glFogi(GL_FOG_MODE, GL_LINEAR);
+        glFogfv(GL_FOG_COLOR, fog_color);
+
+        glFogf(GL_FOG_START, 0.25f);
+        glFogf(GL_FOG_END, 18.0f);
+
+        glHint(GL_FOG_HINT, GL_NICEST);
+
+        glClearColor(0.10f, 0.11f, 0.12f, 1.0f);
+    }
+    else {
+        glDisable(GL_FOG);
+        glClearColor(0.02f, 0.02f, 0.03f, 1.0f);
+    }
+}
+
+void toggle_hard_mode(Scene* scene)
+{
+    scene->hard_mode = !scene->hard_mode;
+
+    if (scene->hard_mode) {
+        printf("Hard Mode: ON\n");
+    }
+    else {
+        printf("Hard Mode: OFF\n");
+    }
+}
+
+static void init_drone(Drone* drone)
+{
+    drone->x = drone_waypoints[0][0];
+    drone->y = 1.4f;
+    drone->z = drone_waypoints[0][1];
+
+    drone->speed = 2.0f;
+
+    drone->detection_radius = 5.0f;
+    drone->detection_angle = (float)M_PI / 2.0f;
+    drone->direction_angle = 0.0f;
+
+    drone->current_waypoint = 1;
+}
+
+static void update_drone(Drone* drone, double delta_time)
+{
+    float target_x;
+    float target_z;
+
+    float dx;
+    float dz;
+    float distance;
+    float step;
+
+    target_x = drone_waypoints[drone->current_waypoint][0];
+    target_z = drone_waypoints[drone->current_waypoint][1];
+
+    dx = target_x - drone->x;
+    dz = target_z - drone->z;
+
+    distance = sqrtf(dx * dx + dz * dz);
+
+    if (distance < 0.1f) {
+        drone->current_waypoint++;
+
+        if (drone->current_waypoint >= DRONE_WAYPOINT_COUNT) {
+            drone->current_waypoint = 0;
+        }
+
+        return;
+    }
+
+    drone->direction_angle = atan2f(dz, dx);
+
+    step = drone->speed * (float)delta_time;
+
+    drone->x += dx / distance * step;
+    drone->z += dz / distance * step;
+}
+
+static bool is_player_detected_by_drone(const Drone* drone, float player_x, float player_z)
+{
+    float dx;
+    float dz;
+    float distance_squared;
+
+    float player_angle;
+    float angle_difference;
+
+    dx = player_x - drone->x;
+    dz = player_z - drone->z;
+
+    distance_squared = dx * dx + dz * dz;
+
+    if (distance_squared > drone->detection_radius * drone->detection_radius) {
+        return false;
+    }
+
+    player_angle = atan2f(dz, dx);
+    angle_difference = player_angle - drone->direction_angle;
+
+    while (angle_difference > (float)M_PI) {
+        angle_difference -= 2.0f * (float)M_PI;
+    }
+
+    while (angle_difference < -(float)M_PI) {
+        angle_difference += 2.0f * (float)M_PI;
+    }
+
+    return fabsf(angle_difference) <= drone->detection_angle / 2.0f;
+}
+
+static void draw_detection_sector(float x, float z, float radius, float direction_angle, float sector_angle)
+{
+    int i;
+    int segments = 32;
+
+    float start_angle;
+    float end_angle;
+    float angle;
+
+    start_angle = direction_angle - sector_angle / 2.0f;
+    end_angle = direction_angle + sector_angle / 2.0f;
+
+    glDisable(GL_TEXTURE_2D);
+    glDisable(GL_LIGHTING);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glColor4f(1.0f, 0.0f, 0.0f, 0.22f);
+
+    glBegin(GL_TRIANGLE_FAN);
+
+    glVertex3f(x, 0.04f, z);
+
+    for (i = 0; i <= segments; ++i) {
+        angle = start_angle + (end_angle - start_angle) * ((float)i / (float)segments);
+
+        glVertex3f(
+            x + cosf(angle) * radius,
+            0.04f,
+            z + sinf(angle) * radius
+        );
+    }
+
+    glEnd();
+
+    glDisable(GL_BLEND);
+
+    glColor3f(1.0f, 0.0f, 0.0f);
+
+    glBegin(GL_LINE_STRIP);
+
+    for (i = 0; i <= segments; ++i) {
+        angle = start_angle + (end_angle - start_angle) * ((float)i / (float)segments);
+
+        glVertex3f(
+            x + cosf(angle) * radius,
+            0.05f,
+            z + sinf(angle) * radius
+        );
+    }
+
+    glEnd();
+
+    glBegin(GL_LINES);
+
+    glVertex3f(x, 0.05f, z);
+    glVertex3f(
+        x + cosf(start_angle) * radius,
+        0.05f,
+        z + sinf(start_angle) * radius
+    );
+
+    glVertex3f(x, 0.05f, z);
+    glVertex3f(
+        x + cosf(end_angle) * radius,
+        0.05f,
+        z + sinf(end_angle) * radius
+    );
+
+    glEnd();
+
+    glEnable(GL_LIGHTING);
+}
+
+static void draw_drone(const Drone* drone)
+{
+    glDisable(GL_TEXTURE_2D);
+
+    glPushMatrix();
+
+    glTranslatef(drone->x, drone->y, drone->z);
+    glRotatef(-drone->direction_angle * 180.0f / (float)M_PI, 0.0f, 1.0f, 0.0f);
+
+    /* test */
+    glColor3f(0.15f, 0.15f, 0.18f);
+    draw_box(0.0f, 0.0f, 0.8f, 0.25f, 0.5f);
+
+    /* elülső jelzőfény */
+    glColor3f(1.0f, 0.0f, 0.0f);
+    draw_box(0.45f, 0.0f, 0.12f, 0.12f, 0.12f);
+
+    /* bal kar */
+    glColor3f(0.25f, 0.25f, 0.28f);
+    draw_box(0.0f, -0.45f, 0.25f, 0.08f, 0.9f);
+
+    /* jobb kar */
+    draw_box(0.0f, 0.45f, 0.25f, 0.08f, 0.9f);
+
+    glPopMatrix();
+}
+
+void reset_scene(Scene* scene)
+{
+    int i;
+
+    scene->exit_door_open = false;
+
+    if (scene->exit_door_collider_index >= 0) {
+        scene->colliders[scene->exit_door_collider_index].active = true;
+    }
+
+    scene->active_generator_count = 0;
+
+    for (i = 0; i < scene->generator_count; ++i) {
+        scene->generators[i].active = false;
+    }
+
+    scene->game_over = false;
+
+    init_drone(&scene->drone);
+
+    printf("Game restarted.\n");
+}
+
+
+
 /* ---------- Scene lifecycle ---------- */
 
 void init_scene(Scene* scene)
@@ -357,6 +671,10 @@ void init_scene(Scene* scene)
 
     scene->generator_count = 0;
     scene->active_generator_count = 0;
+    scene->brightness = 1.0f;
+    scene->hard_mode = false;
+    scene->game_over = false;
+    init_drone(&scene->drone);
 
     scene->floor_texture = load_texture("assets/textures/floor.bmp");
     scene->wall_texture = load_texture("assets/textures/wall.bmp");
@@ -389,12 +707,19 @@ void init_scene(Scene* scene)
     add_collider(scene,  6.0f,  6.0f, 1.0f, 1.0f);
 }
 
-void update_scene(Scene* scene, double delta_time)
+void update_scene(Scene* scene, double delta_time, float player_x, float player_z)
 {
-    (void)delta_time;
-
     if (scene->exit_door_open && scene->exit_door_collider_index >= 0) {
         scene->colliders[scene->exit_door_collider_index].active = false;
+    }
+
+    if (!scene->game_over) {
+        update_drone(&scene->drone, delta_time);
+
+        if (is_player_detected_by_drone(&scene->drone, player_x, player_z)) {
+            scene->game_over = true;
+            printf("GAME OVER: Drone detected the player!\n");
+        }
     }
 }
 
@@ -420,6 +745,16 @@ void render_scene(const Scene* scene)
     for (i = 0; i < scene->generator_count; ++i) {
         draw_generator(&scene->generators[i]);
     }
+
+    draw_detection_sector(
+    scene->drone.x,
+    scene->drone.z,
+    scene->drone.detection_radius,
+    scene->drone.direction_angle,
+    scene->drone.detection_angle
+    );
+
+    draw_drone(&scene->drone);
 }
 
 void destroy_scene(Scene* scene)

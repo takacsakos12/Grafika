@@ -22,6 +22,7 @@ static void create_help_texture(App* app)
     "3 - Hard Mode be/ki\n"
     "F1 - súgó be/ki\n"
     "ESC - kilépés\n\n"
+    "R - játék újraindítása\n"
 
     "Figyelem:\n"
     "Hard Mode-ban köd csökkenti a látótávolságot.\n"
@@ -78,7 +79,7 @@ static void create_help_texture(App* app)
 }
 
 static void draw_help_overlay(const App* app)
-{
+{   glDisable(GL_FOG);
     int x = 40;
     int y = 40;
     int padding = 20;
@@ -236,6 +237,8 @@ void init_opengl()
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
 
+    glEnable(GL_NORMALIZE);
+
     glClearColor(0.02f, 0.02f, 0.03f, 1.0f);
 
     glMatrixMode(GL_MODELVIEW);
@@ -322,7 +325,29 @@ void handle_app_events(App* app)
                 (float)app->camera.position.x,
                 (float)app->camera.position.z
                 );
-                break;       
+                break;
+            case SDLK_PLUS:
+                case SDLK_KP_PLUS:
+                change_scene_brightness(&app->scene, 0.1f);
+                break;
+
+            case SDLK_MINUS:
+            case SDLK_KP_MINUS:
+                change_scene_brightness(&app->scene, -0.1f);
+                break;
+            case SDLK_3:
+                toggle_hard_mode(&app->scene);
+                break;
+            case SDLK_r:
+                reset_scene(&app->scene);
+                reset_camera(&app->camera);
+
+                app->key_w = false;
+                app->key_a = false;
+                app->key_s = false;
+                app->key_d = false;
+
+                break;                   
 
             default:
                 break;
@@ -379,19 +404,25 @@ void update_app(App* app)
     delta_time = current_time - app->uptime;
     app->uptime = current_time;
 
-    update_camera(
-        &app->camera,
+    if (!app->scene.game_over) {
+        update_camera(
+            &app->camera,
+            &app->scene,
+            delta_time,
+            app->key_w,
+            app->key_s,
+            app->key_a,
+            app->key_d
+        );
+    }
+
+    update_scene(
         &app->scene,
         delta_time,
-        app->key_w,
-        app->key_s,
-        app->key_a,
-        app->key_d
+        (float)app->camera.position.x,
+        (float)app->camera.position.z
     );
-
-    update_scene(&app->scene, delta_time);
 }
-
 
 void render_app(App* app)
 {
@@ -399,6 +430,8 @@ void render_app(App* app)
 
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
+    set_scene_lighting(&app->scene);
+    apply_scene_fog(&app->scene);
 
     set_view(&app->camera);
 
