@@ -70,7 +70,4 @@ void render_app(App* app);
  * Destroy the application.
  */
 void destroy_app(App* app);
-
-static void create_help_texture(App* app);
-static void draw_help_overlay(const App* app);
 #endif /* APP_H */

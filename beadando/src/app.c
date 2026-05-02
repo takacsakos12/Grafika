@@ -314,7 +314,15 @@ void handle_app_events(App* app)
             
             case SDLK_F1:
                 app->show_help = !app->show_help;
-                break;   
+                break;
+            
+            case SDLK_e:
+                interact_scene(
+                &app->scene,
+                (float)app->camera.position.x,
+                (float)app->camera.position.z
+                );
+                break;       
 
             default:
                 break;
