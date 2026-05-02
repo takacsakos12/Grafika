@@ -4,6 +4,7 @@
 
 
 #include <stdlib.h>
+#include <string.h>
 
 static void create_help_texture(App* app)
 {
@@ -76,6 +77,301 @@ static void create_help_texture(App* app)
 
     SDL_FreeSurface(formatted_surface);
     SDL_FreeSurface(surface);
+}
+
+static void create_game_over_texture(App* app)
+{
+    const char* game_over_text =
+        "GAME OVER\n\n"
+        "A dron eszrevett.\n\n"
+        "R - ujrainditas\n"
+        "ESC - kilepes";
+
+    SDL_Color text_color = {255, 255, 255, 255};
+
+    SDL_Surface* surface;
+    SDL_Surface* formatted_surface;
+
+    surface = TTF_RenderUTF8_Blended_Wrapped(
+        app->font,
+        game_over_text,
+        text_color,
+        500
+    );
+
+    if (surface == NULL) {
+        fprintf(stderr, "Game over text render error: %s\n", TTF_GetError());
+        return;
+    }
+
+    formatted_surface = SDL_ConvertSurfaceFormat(surface, SDL_PIXELFORMAT_ABGR8888, 0);
+
+    if (formatted_surface == NULL) {
+        fprintf(stderr, "Game over surface convert error: %s\n", SDL_GetError());
+        SDL_FreeSurface(surface);
+        return;
+    }
+
+    app->game_over_texture_width = formatted_surface->w;
+    app->game_over_texture_height = formatted_surface->h;
+
+    glGenTextures(1, &app->game_over_texture);
+    glBindTexture(GL_TEXTURE_2D, app->game_over_texture);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA,
+        formatted_surface->w,
+        formatted_surface->h,
+        0,
+        GL_RGBA,
+        GL_UNSIGNED_BYTE,
+        formatted_surface->pixels
+    );
+
+    SDL_FreeSurface(formatted_surface);
+    SDL_FreeSurface(surface);
+}
+
+static void create_win_texture(App* app)
+{
+    const char* win_text =
+        "SIKERES KIJUTAS\n\n"
+        "Mindharom generator aktiv.\n"
+        "A kijarati ajton keresztul elhagytad a bazist.\n\n"
+        "R - ujrainditas\n"
+        "ESC - kilepes";
+
+    SDL_Color text_color = {255, 255, 255, 255};
+
+    SDL_Surface* surface;
+    SDL_Surface* formatted_surface;
+
+    surface = TTF_RenderUTF8_Blended_Wrapped(
+        app->font,
+        win_text,
+        text_color,
+        600
+    );
+
+    if (surface == NULL) {
+        fprintf(stderr, "Win text render error: %s\n", TTF_GetError());
+        return;
+    }
+
+    formatted_surface = SDL_ConvertSurfaceFormat(surface, SDL_PIXELFORMAT_ABGR8888, 0);
+
+    if (formatted_surface == NULL) {
+        fprintf(stderr, "Win surface convert error: %s\n", SDL_GetError());
+        SDL_FreeSurface(surface);
+        return;
+    }
+
+    app->win_texture_width = formatted_surface->w;
+    app->win_texture_height = formatted_surface->h;
+
+    glGenTextures(1, &app->win_texture);
+    glBindTexture(GL_TEXTURE_2D, app->win_texture);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA,
+        formatted_surface->w,
+        formatted_surface->h,
+        0,
+        GL_RGBA,
+        GL_UNSIGNED_BYTE,
+        formatted_surface->pixels
+    );
+
+    SDL_FreeSurface(formatted_surface);
+    SDL_FreeSurface(surface);
+}
+
+static void draw_win_overlay(const App* app)
+{
+    int screen_width = 1024;
+    int screen_height = 768;
+
+    int padding = 30;
+
+    int texture_width = app->win_texture_width;
+    int texture_height = app->win_texture_height;
+
+    int x = (screen_width - texture_width) / 2;
+    int y = (screen_height - texture_height) / 2;
+
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+
+    glOrtho(0, screen_width, screen_height, 0, -1, 1);
+
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_LIGHTING);
+    glDisable(GL_FOG);
+    glDisable(GL_CULL_FACE);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    /* teljes képernyős sötétítés */
+    glDisable(GL_TEXTURE_2D);
+    glColor4f(0.0f, 0.0f, 0.0f, 0.55f);
+
+    glBegin(GL_QUADS);
+    glVertex2i(0, 0);
+    glVertex2i(screen_width, 0);
+    glVertex2i(screen_width, screen_height);
+    glVertex2i(0, screen_height);
+    glEnd();
+
+    /* középső panel */
+    glColor4f(0.02f, 0.18f, 0.08f, 0.90f);
+
+    glBegin(GL_QUADS);
+    glVertex2i(x - padding, y - padding);
+    glVertex2i(x + texture_width + padding, y - padding);
+    glVertex2i(x + texture_width + padding, y + texture_height + padding);
+    glVertex2i(x - padding, y + texture_height + padding);
+    glEnd();
+
+    /* szöveg textúra */
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, app->win_texture);
+
+    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+    glBegin(GL_QUADS);
+
+    glTexCoord2f(0.0f, 0.0f);
+    glVertex2i(x, y);
+
+    glTexCoord2f(1.0f, 0.0f);
+    glVertex2i(x + texture_width, y);
+
+    glTexCoord2f(1.0f, 1.0f);
+    glVertex2i(x + texture_width, y + texture_height);
+
+    glTexCoord2f(0.0f, 1.0f);
+    glVertex2i(x, y + texture_height);
+
+    glEnd();
+
+    glDisable(GL_TEXTURE_2D);
+    glDisable(GL_BLEND);
+
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+
+    glMatrixMode(GL_MODELVIEW);
+}
+
+static void draw_game_over_overlay(const App* app)
+{
+    int screen_width = 1024;
+    int screen_height = 768;
+
+    int padding = 30;
+
+    int texture_width = app->game_over_texture_width;
+    int texture_height = app->game_over_texture_height;
+
+    int x = (screen_width - texture_width) / 2;
+    int y = (screen_height - texture_height) / 2;
+
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+
+    glOrtho(0, screen_width, screen_height, 0, -1, 1);
+
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_LIGHTING);
+    glDisable(GL_FOG);
+    glDisable(GL_CULL_FACE);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    /* teljes képernyős sötétítés */
+    glDisable(GL_TEXTURE_2D);
+    glColor4f(0.0f, 0.0f, 0.0f, 0.65f);
+
+    glBegin(GL_QUADS);
+    glVertex2i(0, 0);
+    glVertex2i(screen_width, 0);
+    glVertex2i(screen_width, screen_height);
+    glVertex2i(0, screen_height);
+    glEnd();
+
+    /* középső panel */
+    glColor4f(0.20f, 0.02f, 0.02f, 0.90f);
+
+    glBegin(GL_QUADS);
+    glVertex2i(x - padding, y - padding);
+    glVertex2i(x + texture_width + padding, y - padding);
+    glVertex2i(x + texture_width + padding, y + texture_height + padding);
+    glVertex2i(x - padding, y + texture_height + padding);
+    glEnd();
+
+    /* Game Over textúra */
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, app->game_over_texture);
+
+    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+    glBegin(GL_QUADS);
+
+    glTexCoord2f(0.0f, 0.0f);
+    glVertex2i(x, y);
+
+    glTexCoord2f(1.0f, 0.0f);
+    glVertex2i(x + texture_width, y);
+
+    glTexCoord2f(1.0f, 1.0f);
+    glVertex2i(x + texture_width, y + texture_height);
+
+    glTexCoord2f(0.0f, 1.0f);
+    glVertex2i(x, y + texture_height);
+
+    glEnd();
+
+    glDisable(GL_TEXTURE_2D);
+    glDisable(GL_BLEND);
+
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+
+    glMatrixMode(GL_MODELVIEW);
 }
 
 static void draw_help_overlay(const App* app)
@@ -166,6 +462,12 @@ void init_app(App* app, int width, int height)
     app->help_texture = 0;
     app->help_texture_width = 0;
     app->help_texture_height = 0;
+    app->game_over_texture = 0;
+    app->game_over_texture_width = 0;
+    app->game_over_texture_height = 0;
+    app->win_texture = 0;
+    app->win_texture_width = 0;
+    app->win_texture_height = 0;
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         fprintf(stderr, "SDL initialization error: %s\n", SDL_GetError());
@@ -208,6 +510,10 @@ void init_app(App* app, int width, int height)
         exit(1);
     }
     app->font = TTF_OpenFont("assets/fonts/arial.ttf", 22);
+
+    create_help_texture(app);
+    create_game_over_texture(app);
+    create_win_texture(app);
 
     if (app->font == NULL) {
     fprintf(stderr, "Font loading error: %s\n", TTF_GetError());
@@ -404,7 +710,7 @@ void update_app(App* app)
     delta_time = current_time - app->uptime;
     app->uptime = current_time;
 
-    if (!app->scene.game_over) {
+    if (!app->scene.game_over && !app->scene.game_won) {
         update_camera(
             &app->camera,
             &app->scene,
@@ -430,15 +736,23 @@ void render_app(App* app)
 
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    set_scene_lighting(&app->scene);
-    apply_scene_fog(&app->scene);
 
     set_view(&app->camera);
+
+    set_scene_lighting(&app->scene);
+    apply_scene_fog(&app->scene);
 
     render_scene(&app->scene);
 
     if (app->show_help) {
         draw_help_overlay(app);
+    }
+
+    if (app->scene.game_over) {
+        draw_game_over_overlay(app);
+    }
+    if (app->scene.game_won) {
+    draw_win_overlay(app);
     }
 
     SDL_GL_SwapWindow(app->window);
@@ -453,9 +767,19 @@ void destroy_app(App* app)
         app->help_texture = 0;
     }
 
+    if (app->game_over_texture != 0) {
+        glDeleteTextures(1, &app->game_over_texture);
+        app->game_over_texture = 0;
+    }
+
     if (app->font != NULL) {
         TTF_CloseFont(app->font);
         app->font = NULL;
+    }
+
+    if (app->win_texture != 0) {
+    glDeleteTextures(1, &app->win_texture);
+    app->win_texture = 0;
     }
 
     TTF_Quit();

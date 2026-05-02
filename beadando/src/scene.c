@@ -7,6 +7,9 @@
 #include <GL/gl.h>
 #include <stdio.h>
 #include <math.h>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 /* ---------- Scene helper functions ---------- */
 
 static void add_collider(Scene* scene, float x, float z, float width, float depth)
@@ -650,10 +653,33 @@ void reset_scene(Scene* scene)
     }
 
     scene->game_over = false;
+    scene->game_won = false;
 
     init_drone(&scene->drone);
 
     printf("Game restarted.\n");
+}
+
+bool is_player_at_exit(const Scene* scene, float player_x, float player_z)
+{
+    float exit_x = 0.0f;
+    float exit_z = 19.0f;
+    float exit_radius = 2.0f;
+
+    float dx;
+    float dz;
+    float distance_squared;
+
+    if (!scene->exit_door_open) {
+        return false;
+    }
+
+    dx = player_x - exit_x;
+    dz = player_z - exit_z;
+
+    distance_squared = dx * dx + dz * dz;
+
+    return distance_squared <= exit_radius * exit_radius;
 }
 
 
@@ -674,6 +700,7 @@ void init_scene(Scene* scene)
     scene->brightness = 1.0f;
     scene->hard_mode = false;
     scene->game_over = false;
+    scene->game_won = false;
     init_drone(&scene->drone);
 
     scene->floor_texture = load_texture("assets/textures/floor.bmp");
@@ -713,13 +740,22 @@ void update_scene(Scene* scene, double delta_time, float player_x, float player_
         scene->colliders[scene->exit_door_collider_index].active = false;
     }
 
-    if (!scene->game_over) {
-        update_drone(&scene->drone, delta_time);
+    if (scene->game_over || scene->game_won) {
+        return;
+    }
 
-        if (is_player_detected_by_drone(&scene->drone, player_x, player_z)) {
-            scene->game_over = true;
-            printf("GAME OVER: Drone detected the player!\n");
-        }
+    update_drone(&scene->drone, delta_time);
+
+    if (is_player_detected_by_drone(&scene->drone, player_x, player_z)) {
+        scene->game_over = true;
+        printf("GAME OVER: Drone detected the player!\n");
+        return;
+    }
+
+    if (is_player_at_exit(scene, player_x, player_z)) {
+        scene->game_won = true;
+        printf("MISSION COMPLETE: Player escaped!\n");
+        return;
     }
 }
 

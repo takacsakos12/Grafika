@@ -65,6 +65,7 @@ typedef struct Scene
 
     Drone drone;
     bool game_over;
+    bool game_won;
 
 } Scene;
 
@@ -81,5 +82,6 @@ void change_scene_brightness(Scene* scene, float amount);
 void toggle_hard_mode(Scene* scene);
 void apply_scene_fog(const Scene* scene);
 void reset_scene(Scene* scene);
+bool is_player_at_exit(const Scene* scene, float player_x, float player_z);
 
 #endif /* SCENE_H */

@@ -4,6 +4,7 @@
 #include "camera.h"
 #include "scene.h"
 
+#include <GL/gl.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
 #include <SDL2/SDL_ttf.h>
@@ -32,6 +33,12 @@ typedef struct App
     GLuint help_texture;
     int help_texture_width;
     int help_texture_height;
+    GLuint game_over_texture;
+    int game_over_texture_width;
+    int game_over_texture_height;
+    GLuint win_texture;
+    int win_texture_width;
+    int win_texture_height;
 
     Camera camera;
     Scene scene;
