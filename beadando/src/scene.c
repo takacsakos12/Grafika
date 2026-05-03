@@ -150,15 +150,15 @@ static void draw_particles(const Scene* scene)
 
 static void init_spark_sources(Scene* scene)
 {
-    scene->spark_sources[0].x = -16.0f;
+    scene->spark_sources[0].x = -15.0f;
     scene->spark_sources[0].y = 0.8f;
-    scene->spark_sources[0].z = 2.0f;
+    scene->spark_sources[0].z = 3.5f;
     scene->spark_sources[0].timer = 0.0f;
     scene->spark_sources[0].next_emit_time = random_float(0.2f, 1.0f);
 
-    scene->spark_sources[1].x = 13.5f;
+    scene->spark_sources[1].x = 15.0f;
     scene->spark_sources[1].y = 0.8f;
-    scene->spark_sources[1].z = 1.0f;
+    scene->spark_sources[1].z = 3.5f;
     scene->spark_sources[1].timer = 0.0f;
     scene->spark_sources[1].next_emit_time = random_float(0.2f, 1.0f);
 }
@@ -181,26 +181,46 @@ static void add_collider(Scene* scene, float x, float z, float width, float dept
 
 static const float drone_waypoints[MAX_DRONES][DRONE_WAYPOINT_COUNT][2] = {
     {
-        {-14.0f,  6.0f},
-        {-14.0f,  9.0f},
-        { -7.0f,  9.0f},
-        { -7.0f, 17.0f},
-        {  5.0f, 17.0f},
-        {  5.0f,  9.0f},
-        { -5.0f,  9.0f},
-        { -5.0f, 12.0f}
+        {-13.0f,  2.0f},
+        {-13.0f,  8.0f},
+        { -4.0f,  8.0f},
+        { -4.0f, 14.0f},
+        {  2.0f, 14.0f},
+        {  2.0f,  8.0f}
     },
     {
-        { 13.0f,  8.0f},
-        { 13.0f,  4.0f},
-        { 13.0f, -6.0f},
-        {  5.0f, -6.0f},
-        {  5.0f, -8.0f},
-        { 13.0f, -8.0f},
-        { 13.0f,  0.0f},
-        { 13.0f,  4.0f}
+        { 13.0f, -10.0f},
+        { 13.0f,  -3.0f},
+        {  8.0f,  -3.0f},
+        {  8.0f,   5.0f},
+        { 14.0f,   5.0f},
+        { 14.0f, -10.0f}
     }
 };
+
+static void draw_drone_path(int index)
+{
+    int i;
+
+    glDisable(GL_TEXTURE_2D);
+    glDisable(GL_LIGHTING);
+
+    glColor3f(1.0f, 0.8f, 0.0f);
+
+    glBegin(GL_LINE_LOOP);
+
+    for (i = 0; i < DRONE_WAYPOINT_COUNT; ++i) {
+        glVertex3f(
+            drone_waypoints[index][i][0],
+            0.06f,
+            drone_waypoints[index][i][1]
+        );
+    }
+
+    glEnd();
+
+    glEnable(GL_LIGHTING);
+}
 
 static void add_generator(Scene* scene, float x, float z)
 {
@@ -401,7 +421,7 @@ static void draw_exit_door(const Scene* scene)
     glEnable(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, scene->door_texture);
 
-    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
     glColor3f(1.0f, 1.0f, 1.0f);
 
@@ -444,16 +464,37 @@ static void draw_exit_door(const Scene* scene)
     glEnable(GL_CULL_FACE);
 }
 
-static void draw_generator(const Generator* generator)
+static void draw_generator(const Scene* scene, const Generator* generator)
 {
+    float generator_scale = 0.01f;
+    float generator_y = 0.5f;
+
+    glDisable(GL_CULL_FACE);
+
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, scene->generator_texture);
+
+    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
     if (generator->active) {
-        glColor3f(0.0f, 0.8f, 1.0f);
+        glColor3f(0.5f, 1.0f, 1.0f);
     }
     else {
-        glColor3f(0.1f, 0.6f, 0.2f);
+        glColor3f(1.0f, 1.0f, 1.0f);
     }
 
-    draw_box(generator->x, generator->z, 1.0f, 1.0f, 1.0f);
+    glPushMatrix();
+
+    glTranslatef(generator->x, generator_y, generator->z);
+    glRotatef(0.0f, 0.0f, 1.0f, 0.0f);
+    glScalef(generator_scale, generator_scale, generator_scale);
+
+    render_model(&scene->generator_model);
+
+    glPopMatrix();
+
+    glDisable(GL_TEXTURE_2D);
+    glEnable(GL_CULL_FACE);
 }
 
 /* ---------- Collision ---------- */
@@ -513,6 +554,19 @@ bool check_collision(const Scene* scene, float x, float z, float radius)
     int i;
 
     for (i = 0; i < scene->collider_count; ++i) {
+        if (circle_intersects_collider(x, z, radius, &scene->colliders[i])) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool check_wall_collision(const Scene* scene, float x, float z, float radius)
+{
+    int i;
+
+    for (i = 0; i < scene->wall_count; ++i) {
         if (circle_intersects_collider(x, z, radius, &scene->colliders[i])) {
             return true;
         }
@@ -709,20 +763,10 @@ static void update_drone(Scene* scene, Drone* drone, int index, double delta_tim
     step = drone->speed * (float)delta_time;
 
     
-    float next_x = drone->x + dx / distance * step;
-    float next_z = drone->z + dz / distance * step;
+    (void)scene;
 
-    if (!check_collision(scene, next_x, next_z, 0.4f)) {
-        drone->x = next_x;
-        drone->z = next_z;
-    }
-    else {
-        drone->current_waypoint++;
-
-        if (drone->current_waypoint >= DRONE_WAYPOINT_COUNT) {
-            drone->current_waypoint = 0;
-        }
-    }
+    drone->x += dx / distance * step;
+    drone->z += dz / distance * step;
 
 }
 
@@ -948,156 +992,152 @@ void init_scene(Scene* scene)
     if (!load_model(&scene->door_panel_model, "assets/models/door_panel.obj")) {
     printf("Failed to load door_panel.obj\n");
     }
+    scene->generator_texture = load_texture("assets/textures/generator.bmp");
 
-    /* =========================
-   KULSO FALAK
+    if (!load_model(&scene->generator_model, "assets/models/generator.obj")) {
+    printf("Failed to load generator.obj\n");
+    }
+
+  /* =========================
+   FALAK A VEGLEGES GEOGEBRA RAJZ ALAPJAN
+   x = jatek x
+   GeoGebra y = jatek z
    ========================= */
 
-    /* also fal, start nyilassal */
-    add_hwall(scene, -20.0f, -2.0f, -20.0f);
-    add_hwall(scene,   2.0f, 20.0f, -20.0f);
+/* Kulso falak */
+add_vwall(scene, -20.0f, -20.0f, 20.0f);
+add_hwall(scene, -20.0f, 20.0f, -20.0f);
+add_vwall(scene, 20.0f, -20.0f, 20.0f);
 
-    /* felso fal, kijarati nyilassal */
-    add_hwall(scene, -20.0f, -2.0f, 20.0f);
-    add_hwall(scene,   2.0f, 20.0f, 20.0f);
+/* Felso fal kijarati nyilassal */
+add_hwall(scene, 1.0f, 20.0f, 20.0f);
+add_hwall(scene, -20.0f, -2.0f, 20.0f);
 
-    /* bal es jobb kulso fal */
-    add_vwall(scene, -20.0f, -20.0f, 20.0f);
-    add_vwall(scene,  20.0f, -20.0f, 20.0f);
+/* Bal oldal / bal felso */
+add_hwall(scene, -20.0f, -10.0f, 0.0f);
+add_hwall(scene, -20.0f, -14.5f, 16.0f);
+add_vwall(scene, -13.0f, 16.0f, 20.0f);
+add_hwall(scene, -20.0f, -19.0f, 10.0f);
+add_hwall(scene, -17.5f, -17.0f, 10.0f);
+add_vwall(scene, -17.0f, 10.0f, 11.0f);
+add_hwall(scene, -17.0f, -14.0f, 11.0f);
+add_hwall(scene, -14.0f, -13.0f, 11.0f);
+add_vwall(scene, -13.0f, 11.0f, 13.0f);
+add_vwall(scene, -13.0f, 14.0f, 16.0f);
 
+/* Felso kozep / kijarat kornyeke */
+add_hwall(scene, 1.0f, 5.0f, 17.0f);
+add_vwall(scene, 5.0f, 11.0f, 17.0f);
+add_vwall(scene, -2.0f, 18.0f, 20.0f);
+add_hwall(scene, -5.0f, -2.0f, 15.0f);
+add_vwall(scene, -5.0f, 13.0f, 15.0f);
+add_vwall(scene, -2.0f, 15.0f, 18.0f);
+add_vwall(scene, -5.0f, 10.5f, 13.0f);
+add_hwall(scene, -11.5f, -5.0f, 12.0f);
+add_vwall(scene, -11.5f, 12.0f, 16.0f);
+add_vwall(scene, -11.5f, 16.0f, 18.5f);
+add_hwall(scene, -11.5f, -9.5f, 18.5f);
+add_vwall(scene, -9.5f, 17.0f, 18.5f);
+add_vwall(scene, -8.0f, 15.5f, 20.0f);
+add_hwall(scene, -10.0f, -8.0f, 15.5f);
+add_vwall(scene, -10.0f, 13.5f, 15.5f);
+add_hwall(scene, -10.0f, -8.0f, 13.5f);
 
-    /* =========================
-    START FOLYOSO
-    ========================= */
+/* Jobb felso */
+add_vwall(scene, 11.0f, 10.0f, 20.0f);
+add_hwall(scene, 11.0f, 18.5f, 10.0f);
+add_vwall(scene, 18.5f, 10.0f, 12.0f);
+add_hwall(scene, 13.0f, 18.5f, 12.0f);
+add_hwall(scene, 13.0f, 20.0f, 15.0f);
+add_vwall(scene, 13.0f, 15.0f, 18.0f);
 
-    add_vwall(scene, -2.0f, -20.0f, -10.0f);
-    add_vwall(scene,  2.0f, -20.0f, -10.0f);
+/* Also kozep / start */
+add_vwall(scene, -2.0f, -20.0f, -12.0f);
+add_vwall(scene, 2.0f, -20.0f, -10.0f);
+add_hwall(scene, -6.0f, -2.0f, -10.0f);
+add_hwall(scene, 2.0f, 4.0f, -10.0f);
+add_vwall(scene, -6.0f, -10.0f, -9.0f);
+add_hwall(scene, -7.0f, -6.0f, -9.0f);
+add_vwall(scene, -7.0f, -20.0f, -9.0f);
 
+/* Bal also */
+add_hwall(scene, -10.0f, -7.0f, -9.0f);
+add_vwall(scene, -10.0f, -9.0f, -6.0f);
+add_hwall(scene, -14.0f, -10.0f, -6.0f);
+add_hwall(scene, -20.0f, -17.0f, -6.0f);
+add_vwall(scene, -10.0f, -2.0f, 0.0f);
 
-    /* =========================
-    GENERATOR 1 SZOBA (bal also)
-    ========================= */
+add_hwall(scene, -20.0f, -16.0f, -14.0f);
+add_vwall(scene, -16.0f, -16.0f, -14.0f);
+add_hwall(scene, -16.0f, -10.0f, -16.0f);
+add_vwall(scene, -10.0f, -16.0f, -14.0f);
 
-    /* felso fal */
-    add_hwall(scene, -20.0f, -10.0f, -5.0f);
+add_hwall(scene, -20.0f, -14.0f, -8.0f);
+add_vwall(scene, -14.0f, -10.0f, -8.0f);
+add_hwall(scene, -16.0f, -14.0f, -10.0f);
+add_vwall(scene, -16.0f, -12.0f, -10.0f);
+add_hwall(scene, -16.0f, -14.0f, -12.0f);
 
-    /* jobb oldali fal, ajtonyilassal */
-    add_vwall(scene, -10.0f, -20.0f, -8.0f);
+/* Bal kozep / szikrazo oldal */
+add_vwall(scene, -10.0f, 3.0f, 9.0f);
+add_hwall(scene, -10.0f, -6.0f, 9.0f);
+add_hwall(scene, -6.0f, -2.5f, 9.0f);
+add_vwall(scene, -2.5f, 9.0f, 11.0f);
+add_hwall(scene, -2.5f, 1.0f, 11.0f);
+add_vwall(scene, 1.0f, 9.0f, 11.0f);
+add_hwall(scene, 1.0f, 2.0f, 9.0f);
 
-    /* kozepso kapcsolodo rovid fal */
-    add_hwall(scene, -10.0f, -5.0f, -8.0f);
+add_vwall(scene, -14.0f, 8.0f, 11.0f);
+add_hwall(scene, -15.0f, -14.0f, 8.0f);
+add_vwall(scene, -15.0f, 4.0f, 8.0f);
+add_hwall(scene, -15.0f, -13.0f, 4.0f);
+add_vwall(scene, -13.0f, 2.0f, 4.0f);
+add_vwall(scene, -16.0f, 0.2f, 2.0f);
+add_hwall(scene, -16.0f, -14.5f, 2.0f);
+add_hwall(scene, -20.0f, -18.0f, 5.0f);
+add_vwall(scene, -18.0f, 5.0f, 6.0f);
+add_hwall(scene, -18.0f, -17.0f, 6.0f);
+add_vwall(scene, -17.0f, 5.0f, 6.0f);
+add_hwall(scene, -17.0f, -15.0f, 5.0f);
 
+/* Kozepso nagy terem */
+add_vwall(scene, 5.0f, -5.0f, 9.0f);
+add_vwall(scene, -6.0f, -5.0f, 9.0f);
+add_hwall(scene, -4.0f, 5.0f, -5.0f);
 
-    /* =========================
-     GENERATOR 2 SZOBA (jobb also)
-    ========================= */
+/* Jobb kozep / szikrazo oldal */
+add_vwall(scene, 10.0f, 4.0f, 6.0f);
+add_hwall(scene, 10.0f, 14.0f, 4.0f);
+add_vwall(scene, 10.0f, 6.0f, 7.0f);
+add_hwall(scene, 8.0f, 10.0f, 7.0f);
+add_vwall(scene, 8.0f, 7.0f, 9.0f);
+add_hwall(scene, 5.0f, 8.0f, 9.0f);
+add_vwall(scene, 14.0f, 1.0f, 4.0f);
+add_vwall(scene, 14.0f, -5.0f, -2.0f);
+add_hwall(scene, 11.0f, 14.0f, -5.0f);
 
-    add_hwall(scene, 10.0f, 20.0f, -5.0f);
-    add_vwall(scene, 10.0f, -20.0f, -8.0f);
-    add_hwall(scene, 5.0f, 10.0f, -8.0f);
+/* Jobb also / jobb oldal */
+add_vwall(scene, 7.0f, -20.0f, -10.0f);
+add_hwall(scene, 7.0f, 14.0f, -10.0f);
+add_hwall(scene, 17.0f, 20.0f, -10.0f);
+add_vwall(scene, 14.0f, -18.5f, -10.0f);
+add_hwall(scene, 18.0f, 20.0f, -8.0f);
 
+/* Eddig tartanak a falak */
+scene->wall_count = scene->collider_count;
+   
+/* Kijarati ajto collider */
+scene->exit_door_collider_index = scene->collider_count;
+add_collider(scene, 0.0f, 19.7f, 3.0f, 0.4f);
+/* Generatorok */
+add_generator(scene, -16.0f, -13.0f);  /* bal also nagy szoba */
+add_generator(scene,  16.0f,   0.0f);  /* jobb also/kozep extra szoba */
+add_generator(scene,  -6.0f,  16.0f);  /* bal felso kis mellekszoba */
 
-    /* =========================
-    KOZEPSONAGY TEREM
-    ========================= */
-
-    /* also fal kozepso ajtoval */
-    add_hwall(scene, -7.0f, -2.0f, -8.0f);
-    add_hwall(scene,  2.0f,  7.0f, -8.0f);
-
-    /* felso fal kozepso ajtoval */
-    add_hwall(scene, -7.0f, -2.0f,  8.0f);
-    add_hwall(scene,  2.0f,  7.0f,  8.0f);
-
-    /* bal es jobb fal */
-    add_vwall(scene, -7.0f, -8.0f, 8.0f);
-    add_vwall(scene,  7.0f, -8.0f, 8.0f);
-
-
-    /* =========================
-    SZIKRAZO BAL OLDALT
-    ========================= */
-
-    add_hwall(scene, -20.0f, -12.0f, 0.0f);
-    add_hwall(scene, -20.0f, -12.0f, 8.0f);
-
-    /* jobb fal ajtonyilassal */
-    add_vwall(scene, -12.0f, 0.0f, 3.0f);
-    add_vwall(scene, -12.0f, 5.0f, 8.0f);
-
-
-    /* =========================
-    SZIKRAZO JOBB OLDALT
-    ========================= */
-
-    add_hwall(scene, 12.0f, 20.0f, -4.0f);
-    add_hwall(scene, 12.0f, 20.0f,  4.0f);
-
-    /* bal fal ajtonyilassal */
-    add_vwall(scene, 12.0f, -4.0f, -1.0f);
-    add_vwall(scene, 12.0f,  1.0f,  4.0f);
-
-
-    /* =========================
-    FELSO BAL LABOR
-     ========================= */
-
-    add_hwall(scene, -20.0f, -10.0f, 10.0f);
-
-    /* jobb fal ajtonyilassal */
-    add_vwall(scene, -10.0f, 10.0f, 13.0f);
-    add_vwall(scene, -10.0f, 15.0f, 20.0f);
-
-
-    /* =========================
-    GENERATOR 3 SZOBA (jobb felso)
-    ========================= */
-
-    add_hwall(scene, 10.0f, 20.0f, 10.0f);
-
-    /* bal fal ajtonyilassal */
-    add_vwall(scene, 10.0f, 10.0f, 13.0f);
-    add_vwall(scene, 10.0f, 15.0f, 20.0f);
-
-
-    /* =========================
-    FELSO KOZEP FOLYOSO
-    ========================= */
-
-    add_vwall(scene, -4.0f, 10.0f, 17.0f);
-    add_vwall(scene,  4.0f, 10.0f, 17.0f);
-
-    /* kozepso rovid tagolo falak */
-    add_hwall(scene, -4.0f, -1.5f, 15.0f);
-    add_hwall(scene,  1.5f,  4.0f, 15.0f);
-
-
-    /* =========================
-    KOZEP-BAL ES KOZEP-JOBB FOLYOSO TAGOLAS
-    ========================= */
-
-    add_vwall(scene, -10.0f, -2.0f, 8.0f);
-    add_vwall(scene,  10.0f, -2.0f, 8.0f);
-
-    add_hwall(scene, -12.0f, -7.0f, 8.0f);
-    add_hwall(scene,  7.0f, 12.0f, 8.0f);
-
-    /* EDDIG FALAK */
-    scene->wall_count = scene->collider_count;
-
-    /* Kijarati ajto collider */
-    scene->exit_door_collider_index = scene->collider_count;
-    add_collider(scene, 0.0f, 19.7f, 3.0f, 0.4f);
-
-    /* Generatorok */
-    add_generator(scene, -15.0f, -14.0f);
-    add_generator(scene,  15.0f, -14.0f);
-    add_generator(scene,  15.0f,  15.0f);
-
-    /* Generator colliderjeik */
-    add_collider(scene, -15.0f, -14.0f, 1.0f, 1.0f);
-    add_collider(scene,  15.0f, -14.0f, 1.0f, 1.0f);
-    add_collider(scene,  15.0f,  15.0f, 1.0f, 1.0f);
+/* Generator colliderjei */
+add_collider(scene, -16.0f, -13.0f, 1.0f, 1.0f);
+add_collider(scene,  16.0f,   0.0f, 1.0f, 1.0f);
+add_collider(scene,  -6.0f,  16.0f, 1.0f, 1.0f);
 }
 
 void update_scene(Scene* scene, double delta_time, float player_x, float player_z)
@@ -1151,19 +1191,19 @@ void render_scene(const Scene* scene)
 
     /* 0-3: kulso falak, 4-6: belso falak */
     for (i = 0; i < scene->wall_count; ++i) {
-        draw_wall(
-            scene->colliders[i].x,
-            scene->colliders[i].z,
-            scene->colliders[i].width,
-            scene->colliders[i].depth,
-            scene->wall_texture
-        );
+    draw_wall(
+        scene->colliders[i].x,
+        scene->colliders[i].z,
+        scene->colliders[i].width,
+        scene->colliders[i].depth,
+        scene->wall_texture
+    );
     }
 
     draw_exit_door(scene);
 
     for (i = 0; i < scene->generator_count; ++i) {
-        draw_generator(&scene->generators[i]);
+    draw_generator(scene, &scene->generators[i]);
     }
 
     for (i = 0; i < scene->drone_count; ++i) {
@@ -1174,6 +1214,7 @@ void render_scene(const Scene* scene)
         scene->drones[i].direction_angle,
         scene->drones[i].detection_angle
     );
+    draw_drone_path(i);
 
     draw_drone(&scene->drones[i]);
     }
@@ -1199,4 +1240,10 @@ void destroy_scene(Scene* scene)
 
     destroy_model(&scene->door_frame_model);
     destroy_model(&scene->door_panel_model);
+    if (scene->generator_texture != 0) {
+    glDeleteTextures(1, &scene->generator_texture);
+    scene->generator_texture = 0;
+    }
+
+    destroy_model(&scene->generator_model);
 }

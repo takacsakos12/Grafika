@@ -6,7 +6,7 @@
 
 #include "model.h"
 
-#define MAX_COLLIDERS 64
+#define MAX_COLLIDERS 160
 #define MAX_GENERATORS 3
 #define DRONE_WAYPOINT_COUNT 8
 #define MAX_DRONES 2
@@ -91,6 +91,8 @@ typedef struct Scene
     Model door_frame_model;
     Model door_panel_model;
     GLuint door_texture;
+    Model generator_model;
+    GLuint generator_texture;
     float exit_door_offset;
 
     float brightness;
