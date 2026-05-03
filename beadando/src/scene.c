@@ -150,15 +150,15 @@ static void draw_particles(const Scene* scene)
 
 static void init_spark_sources(Scene* scene)
 {
-    scene->spark_sources[0].x = -14.0f;
+    scene->spark_sources[0].x = -16.0f;
     scene->spark_sources[0].y = 0.8f;
     scene->spark_sources[0].z = 2.0f;
     scene->spark_sources[0].timer = 0.0f;
     scene->spark_sources[0].next_emit_time = random_float(0.2f, 1.0f);
 
-    scene->spark_sources[1].x = 13.0f;
+    scene->spark_sources[1].x = 13.5f;
     scene->spark_sources[1].y = 0.8f;
-    scene->spark_sources[1].z = 3.0f;
+    scene->spark_sources[1].z = 1.0f;
     scene->spark_sources[1].timer = 0.0f;
     scene->spark_sources[1].next_emit_time = random_float(0.2f, 1.0f);
 }
@@ -181,16 +181,24 @@ static void add_collider(Scene* scene, float x, float z, float width, float dept
 
 static const float drone_waypoints[MAX_DRONES][DRONE_WAYPOINT_COUNT][2] = {
     {
-        {-6.0f,  8.0f},
-        {-6.0f, 13.0f},
-        { 2.0f, 13.0f},
-        { 2.0f,  8.0f}
+        {-14.0f,  6.0f},
+        {-14.0f,  9.0f},
+        { -7.0f,  9.0f},
+        { -7.0f, 17.0f},
+        {  5.0f, 17.0f},
+        {  5.0f,  9.0f},
+        { -5.0f,  9.0f},
+        { -5.0f, 12.0f}
     },
     {
-        { 6.0f, -7.0f},
-        {13.0f, -7.0f},
-        {13.0f,  5.0f},
-        { 6.0f,  5.0f}
+        { 13.0f,  8.0f},
+        { 13.0f,  4.0f},
+        { 13.0f, -6.0f},
+        {  5.0f, -6.0f},
+        {  5.0f, -8.0f},
+        { 13.0f, -8.0f},
+        { 13.0f,  0.0f},
+        { 13.0f,  4.0f}
     }
 };
 
@@ -240,6 +248,22 @@ static void draw_floor(float size, GLuint texture)
 
     glDisable(GL_TEXTURE_2D);
     glEnable(GL_CULL_FACE);
+}
+
+static void add_hwall(Scene* scene, float x1, float x2, float z)
+{
+    float center_x = (x1 + x2) / 2.0f;
+    float width = fabsf(x2 - x1);
+
+    add_collider(scene, center_x, z, width, 0.4f);
+}
+
+static void add_vwall(Scene* scene, float x, float z1, float z2)
+{
+    float center_z = (z1 + z2) / 2.0f;
+    float depth = fabsf(z2 - z1);
+
+    add_collider(scene, x, center_z, 0.4f, depth);
 }
 
 static void draw_box(float x, float z, float width, float height, float depth)
@@ -652,7 +676,7 @@ static void init_drone(Drone* drone, int index)
     drone->current_waypoint = 1;
 }
 
-static void update_drone(Drone* drone, int index, double delta_time)
+static void update_drone(Scene* scene, Drone* drone, int index, double delta_time)
 {
     float target_x;
     float target_z;
@@ -684,8 +708,22 @@ static void update_drone(Drone* drone, int index, double delta_time)
 
     step = drone->speed * (float)delta_time;
 
-    drone->x += dx / distance * step;
-    drone->z += dz / distance * step;
+    
+    float next_x = drone->x + dx / distance * step;
+    float next_z = drone->z + dz / distance * step;
+
+    if (!check_collision(scene, next_x, next_z, 0.4f)) {
+        drone->x = next_x;
+        drone->z = next_z;
+    }
+    else {
+        drone->current_waypoint++;
+
+        if (drone->current_waypoint >= DRONE_WAYPOINT_COUNT) {
+            drone->current_waypoint = 0;
+        }
+    }
+
 }
 
 static bool is_player_detected_by_drone(const Drone* drone, float player_x, float player_z)
@@ -903,8 +941,6 @@ void init_scene(Scene* scene)
     scene->floor_texture = load_texture("assets/textures/floor.bmp");
     scene->wall_texture = load_texture("assets/textures/wall.bmp");
     scene->door_texture = load_texture("assets/textures/door.bmp");
-    scene->door_texture = load_texture("assets/textures/door.bmp");
-
     if (!load_model(&scene->door_frame_model, "assets/models/door_frame.obj")) {
     printf("Failed to load door_frame.obj\n");
     }
@@ -913,73 +949,155 @@ void init_scene(Scene* scene)
     printf("Failed to load door_panel.obj\n");
     }
 
-    /* Kulso falak */
-    /* Kulso falak */
-    add_collider(scene, 0.0f, -20.0f, 40.0f, 0.4f);      /* also fal */
-    add_collider(scene, -11.5f, 20.0f, 17.0f, 0.4f);     /* felso bal fal */
-    add_collider(scene,  11.5f, 20.0f, 17.0f, 0.4f);     /* felso jobb fal */
-    add_collider(scene, -20.0f, 0.0f, 0.4f, 40.0f);      /* bal fal */
-    add_collider(scene,  20.0f, 0.0f, 0.4f, 40.0f);      /* jobb fal */
+    /* =========================
+   KULSO FALAK
+   ========================= */
 
-    /* Belso falak */
-    /* Belso falak / szobak / folyosok */
+    /* also fal, start nyilassal */
+    add_hwall(scene, -20.0f, -2.0f, -20.0f);
+    add_hwall(scene,   2.0f, 20.0f, -20.0f);
 
-    /* bal also generator szoba */
-    add_collider(scene, -13.0f, -16.0f, 10.0f, 0.4f);
-    add_collider(scene, -13.0f, -8.0f, 10.0f, 0.4f);
-    add_collider(scene, -18.0f, -12.0f, 0.4f, 8.0f);
-    add_collider(scene, -8.0f, -12.0f, 0.4f, 8.0f);
+    /* felso fal, kijarati nyilassal */
+    add_hwall(scene, -20.0f, -2.0f, 20.0f);
+    add_hwall(scene,   2.0f, 20.0f, 20.0f);
 
-    /* jobb also generator szoba */
-    add_collider(scene, 13.0f, -16.0f, 10.0f, 0.4f);
-    add_collider(scene, 13.0f, -8.0f, 10.0f, 0.4f);
-    add_collider(scene, 8.0f, -12.0f, 0.4f, 8.0f);
-    add_collider(scene, 18.0f, -12.0f, 0.4f, 8.0f);
+    /* bal es jobb kulso fal */
+    add_vwall(scene, -20.0f, -20.0f, 20.0f);
+    add_vwall(scene,  20.0f, -20.0f, 20.0f);
 
-    /* jobb felso generator szoba */
-    add_collider(scene, 13.0f, 10.0f, 10.0f, 0.4f);
-    add_collider(scene, 13.0f, 18.0f, 10.0f, 0.4f);
-    add_collider(scene, 8.0f, 14.0f, 0.4f, 8.0f);
-    add_collider(scene, 18.0f, 14.0f, 0.4f, 8.0f);
 
-    /* bal felso szoba / labor */
-    add_collider(scene, -13.0f, 10.0f, 10.0f, 0.4f);
-    add_collider(scene, -13.0f, 18.0f, 10.0f, 0.4f);
-    add_collider(scene, -18.0f, 14.0f, 0.4f, 8.0f);
-    add_collider(scene, -8.0f, 14.0f, 0.4f, 8.0f);
+    /* =========================
+    START FOLYOSO
+    ========================= */
 
-    /* kozepso szoba */
-    add_collider(scene, 0.0f, -6.0f, 8.0f, 0.4f);
-    add_collider(scene, 0.0f, 6.0f, 8.0f, 0.4f);
-    add_collider(scene, -4.0f, 0.0f, 0.4f, 12.0f);
-    add_collider(scene, 4.0f, 0.0f, 0.4f, 12.0f);
+    add_vwall(scene, -2.0f, -20.0f, -10.0f);
+    add_vwall(scene,  2.0f, -20.0f, -10.0f);
 
-    /* folyosokat tagolo falak */
-    add_collider(scene, -10.0f, 0.0f, 0.4f, 8.0f);
-    add_collider(scene, 10.0f, 0.0f, 0.4f, 8.0f);
 
-    add_collider(scene, -4.0f, 9.0f, 8.0f, 0.4f);
-    add_collider(scene, 4.0f, 9.0f, 8.0f, 0.4f);
+    /* =========================
+    GENERATOR 1 SZOBA (bal also)
+    ========================= */
 
-    add_collider(scene, -4.0f, -9.0f, 8.0f, 0.4f);
-    add_collider(scene, 4.0f, -9.0f, 8.0f, 0.4f);
+    /* felso fal */
+    add_hwall(scene, -20.0f, -10.0f, -5.0f);
 
-    /* Eddig tartanak a falak */
+    /* jobb oldali fal, ajtonyilassal */
+    add_vwall(scene, -10.0f, -20.0f, -8.0f);
+
+    /* kozepso kapcsolodo rovid fal */
+    add_hwall(scene, -10.0f, -5.0f, -8.0f);
+
+
+    /* =========================
+     GENERATOR 2 SZOBA (jobb also)
+    ========================= */
+
+    add_hwall(scene, 10.0f, 20.0f, -5.0f);
+    add_vwall(scene, 10.0f, -20.0f, -8.0f);
+    add_hwall(scene, 5.0f, 10.0f, -8.0f);
+
+
+    /* =========================
+    KOZEPSONAGY TEREM
+    ========================= */
+
+    /* also fal kozepso ajtoval */
+    add_hwall(scene, -7.0f, -2.0f, -8.0f);
+    add_hwall(scene,  2.0f,  7.0f, -8.0f);
+
+    /* felso fal kozepso ajtoval */
+    add_hwall(scene, -7.0f, -2.0f,  8.0f);
+    add_hwall(scene,  2.0f,  7.0f,  8.0f);
+
+    /* bal es jobb fal */
+    add_vwall(scene, -7.0f, -8.0f, 8.0f);
+    add_vwall(scene,  7.0f, -8.0f, 8.0f);
+
+
+    /* =========================
+    SZIKRAZO BAL OLDALT
+    ========================= */
+
+    add_hwall(scene, -20.0f, -12.0f, 0.0f);
+    add_hwall(scene, -20.0f, -12.0f, 8.0f);
+
+    /* jobb fal ajtonyilassal */
+    add_vwall(scene, -12.0f, 0.0f, 3.0f);
+    add_vwall(scene, -12.0f, 5.0f, 8.0f);
+
+
+    /* =========================
+    SZIKRAZO JOBB OLDALT
+    ========================= */
+
+    add_hwall(scene, 12.0f, 20.0f, -4.0f);
+    add_hwall(scene, 12.0f, 20.0f,  4.0f);
+
+    /* bal fal ajtonyilassal */
+    add_vwall(scene, 12.0f, -4.0f, -1.0f);
+    add_vwall(scene, 12.0f,  1.0f,  4.0f);
+
+
+    /* =========================
+    FELSO BAL LABOR
+     ========================= */
+
+    add_hwall(scene, -20.0f, -10.0f, 10.0f);
+
+    /* jobb fal ajtonyilassal */
+    add_vwall(scene, -10.0f, 10.0f, 13.0f);
+    add_vwall(scene, -10.0f, 15.0f, 20.0f);
+
+
+    /* =========================
+    GENERATOR 3 SZOBA (jobb felso)
+    ========================= */
+
+    add_hwall(scene, 10.0f, 20.0f, 10.0f);
+
+    /* bal fal ajtonyilassal */
+    add_vwall(scene, 10.0f, 10.0f, 13.0f);
+    add_vwall(scene, 10.0f, 15.0f, 20.0f);
+
+
+    /* =========================
+    FELSO KOZEP FOLYOSO
+    ========================= */
+
+    add_vwall(scene, -4.0f, 10.0f, 17.0f);
+    add_vwall(scene,  4.0f, 10.0f, 17.0f);
+
+    /* kozepso rovid tagolo falak */
+    add_hwall(scene, -4.0f, -1.5f, 15.0f);
+    add_hwall(scene,  1.5f,  4.0f, 15.0f);
+
+
+    /* =========================
+    KOZEP-BAL ES KOZEP-JOBB FOLYOSO TAGOLAS
+    ========================= */
+
+    add_vwall(scene, -10.0f, -2.0f, 8.0f);
+    add_vwall(scene,  10.0f, -2.0f, 8.0f);
+
+    add_hwall(scene, -12.0f, -7.0f, 8.0f);
+    add_hwall(scene,  7.0f, 12.0f, 8.0f);
+
+    /* EDDIG FALAK */
     scene->wall_count = scene->collider_count;
 
-    /* Kijarati ajto */
+    /* Kijarati ajto collider */
     scene->exit_door_collider_index = scene->collider_count;
     add_collider(scene, 0.0f, 19.7f, 3.0f, 0.4f);
 
     /* Generatorok */
-    add_generator(scene, -14.0f, -12.0f);
-    add_generator(scene,  14.0f, -12.0f);
-    add_generator(scene,  13.0f,  14.0f);
+    add_generator(scene, -15.0f, -14.0f);
+    add_generator(scene,  15.0f, -14.0f);
+    add_generator(scene,  15.0f,  15.0f);
 
-   /* Generatorok colliderjei */
-    add_collider(scene, -14.0f, -12.0f, 1.0f, 1.0f);
-    add_collider(scene,  14.0f, -12.0f, 1.0f, 1.0f);
-    add_collider(scene,  13.0f,  14.0f, 1.0f, 1.0f);
+    /* Generator colliderjeik */
+    add_collider(scene, -15.0f, -14.0f, 1.0f, 1.0f);
+    add_collider(scene,  15.0f, -14.0f, 1.0f, 1.0f);
+    add_collider(scene,  15.0f,  15.0f, 1.0f, 1.0f);
 }
 
 void update_scene(Scene* scene, double delta_time, float player_x, float player_z)
@@ -1009,7 +1127,7 @@ void update_scene(Scene* scene, double delta_time, float player_x, float player_
     }
 
     for (i = 0; i < scene->drone_count; ++i) {
-    update_drone(&scene->drones[i], i, delta_time);
+    update_drone(scene, &scene->drones[i], i, delta_time);
 
     if (is_player_detected_by_drone(&scene->drones[i], player_x, player_z)) {
         scene->game_over = true;
