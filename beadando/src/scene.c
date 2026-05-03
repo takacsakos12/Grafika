@@ -150,15 +150,15 @@ static void draw_particles(const Scene* scene)
 
 static void init_spark_sources(Scene* scene)
 {
-    scene->spark_sources[0].x = -15.0f;
+    scene->spark_sources[0].x = -16.5f;
     scene->spark_sources[0].y = 0.8f;
-    scene->spark_sources[0].z = 3.5f;
+    scene->spark_sources[0].z = 5.5f;
     scene->spark_sources[0].timer = 0.0f;
     scene->spark_sources[0].next_emit_time = random_float(0.2f, 1.0f);
 
-    scene->spark_sources[1].x = 15.0f;
+    scene->spark_sources[1].x = 13.0f;
     scene->spark_sources[1].y = 0.8f;
-    scene->spark_sources[1].z = 3.5f;
+    scene->spark_sources[1].z = 3.0f;
     scene->spark_sources[1].timer = 0.0f;
     scene->spark_sources[1].next_emit_time = random_float(0.2f, 1.0f);
 }
@@ -181,41 +181,35 @@ static void add_collider(Scene* scene, float x, float z, float width, float dept
 
 static const float drone_waypoints[MAX_DRONES][DRONE_WAYPOINT_COUNT][2] = {
     {
-        {-13.0f,  2.0f},
-        {-13.0f,  8.0f},
-        { -4.0f,  8.0f},
-        { -4.0f, 14.0f},
-        {  2.0f, 14.0f},
-        {  2.0f,  8.0f}
+        {-8.0f, -3.5f},
+        {-8.0f,  7.5f}
     },
     {
-        { 13.0f, -10.0f},
-        { 13.0f,  -3.0f},
-        {  8.0f,  -3.0f},
-        {  8.0f,   5.0f},
-        { 14.0f,   5.0f},
-        { 14.0f, -10.0f}
+        {16.0f, -6.5f},
+        {16.0f,  8.5f}
     }
 };
 
 static void draw_drone_path(int index)
 {
-    int i;
-
     glDisable(GL_TEXTURE_2D);
     glDisable(GL_LIGHTING);
 
     glColor3f(1.0f, 0.8f, 0.0f);
 
-    glBegin(GL_LINE_LOOP);
+    glBegin(GL_LINES);
 
-    for (i = 0; i < DRONE_WAYPOINT_COUNT; ++i) {
-        glVertex3f(
-            drone_waypoints[index][i][0],
-            0.06f,
-            drone_waypoints[index][i][1]
-        );
-    }
+    glVertex3f(
+        drone_waypoints[index][0][0],
+        0.06f,
+        drone_waypoints[index][0][1]
+    );
+
+    glVertex3f(
+        drone_waypoints[index][1][0],
+        0.06f,
+        drone_waypoints[index][1][1]
+    );
 
     glEnd();
 
@@ -749,14 +743,15 @@ static void update_drone(Scene* scene, Drone* drone, int index, double delta_tim
     distance = sqrtf(dx * dx + dz * dz);
 
     if (distance < 0.1f) {
-        drone->current_waypoint++;
-
-        if (drone->current_waypoint >= DRONE_WAYPOINT_COUNT) {
-            drone->current_waypoint = 0;
-        }
-
-        return;
+    if (drone->current_waypoint == 0) {
+        drone->current_waypoint = 1;
     }
+    else {
+        drone->current_waypoint = 0;
+    }
+
+    return;
+}
 
     drone->direction_angle = atan2f(dz, dx);
 
@@ -1127,17 +1122,19 @@ add_hwall(scene, 18.0f, 20.0f, -8.0f);
 scene->wall_count = scene->collider_count;
    
 /* Kijarati ajto collider */
+/* Kijarati ajto collider */
 scene->exit_door_collider_index = scene->collider_count;
 add_collider(scene, 0.0f, 19.7f, 3.0f, 0.4f);
+
 /* Generatorok */
-add_generator(scene, -16.0f, -13.0f);  /* bal also nagy szoba */
-add_generator(scene,  16.0f,   0.0f);  /* jobb also/kozep extra szoba */
-add_generator(scene,  -6.0f,  16.0f);  /* bal felso kis mellekszoba */
+add_generator(scene, -15.0f, -11.0f);
+add_generator(scene,  15.5f,  -3.5f);
+add_generator(scene, -10.0f,  17.0f);
 
 /* Generator colliderjei */
-add_collider(scene, -16.0f, -13.0f, 1.0f, 1.0f);
-add_collider(scene,  16.0f,   0.0f, 1.0f, 1.0f);
-add_collider(scene,  -6.0f,  16.0f, 1.0f, 1.0f);
+add_collider(scene, -15.0f, -11.0f, 1.0f, 1.0f);
+add_collider(scene,  15.5f,  -3.5f, 1.0f, 1.0f);
+add_collider(scene, -10.0f,  17.0f, 1.0f, 1.0f);
 }
 
 void update_scene(Scene* scene, double delta_time, float player_x, float player_z)
