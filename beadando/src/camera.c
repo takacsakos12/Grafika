@@ -14,7 +14,7 @@ void init_camera(Camera* camera)
 {
     camera->position.x = 0.0;
     camera->position.y = PLAYER_HEIGHT;
-    camera->position.z = 5.0;
+    camera->position.z = -17.0;
 
     camera->rotation.x = 0.0;
     camera->rotation.y = 0.0;
@@ -126,7 +126,7 @@ void reset_camera(Camera* camera)
 {
     camera->position.x = 0.0;
     camera->position.y = PLAYER_HEIGHT;
-    camera->position.z = 0.0;
+    camera->position.z = -17.0;
 
     camera->rotation.x = 0.0;
     camera->rotation.y = 0.0;

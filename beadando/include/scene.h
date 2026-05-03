@@ -9,6 +9,7 @@
 #define MAX_COLLIDERS 64
 #define MAX_GENERATORS 3
 #define DRONE_WAYPOINT_COUNT 4
+#define MAX_DRONES 2
 #define MAX_PARTICLES 200
 #define SPARK_SOURCE_COUNT 2
 
@@ -75,6 +76,7 @@ typedef struct Scene
 
     Collider colliders[MAX_COLLIDERS];
     int collider_count;
+    int wall_count;
 
     int exit_door_collider_index;
     bool exit_door_open;
@@ -86,12 +88,16 @@ typedef struct Scene
     GLuint floor_texture;
     GLuint wall_texture;
 
-    Model door_model;
+    Model door_frame_model;
+    Model door_panel_model;
     GLuint door_texture;
+    float exit_door_offset;
+
     float brightness;
     bool hard_mode;
 
-    Drone drone;
+   Drone drones[MAX_DRONES];
+    int drone_count;
     bool game_over;
     bool game_won;
 

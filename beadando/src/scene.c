@@ -150,15 +150,15 @@ static void draw_particles(const Scene* scene)
 
 static void init_spark_sources(Scene* scene)
 {
-    scene->spark_sources[0].x = -8.0f;
-    scene->spark_sources[0].y = 0.6f;
-    scene->spark_sources[0].z = 3.0f;
+    scene->spark_sources[0].x = -14.0f;
+    scene->spark_sources[0].y = 0.8f;
+    scene->spark_sources[0].z = 2.0f;
     scene->spark_sources[0].timer = 0.0f;
     scene->spark_sources[0].next_emit_time = random_float(0.2f, 1.0f);
 
-    scene->spark_sources[1].x = 7.0f;
-    scene->spark_sources[1].y = 0.6f;
-    scene->spark_sources[1].z = 2.0f;
+    scene->spark_sources[1].x = 13.0f;
+    scene->spark_sources[1].y = 0.8f;
+    scene->spark_sources[1].z = 3.0f;
     scene->spark_sources[1].timer = 0.0f;
     scene->spark_sources[1].next_emit_time = random_float(0.2f, 1.0f);
 }
@@ -179,11 +179,19 @@ static void add_collider(Scene* scene, float x, float z, float width, float dept
     scene->collider_count++;
 }
 
-static const float drone_waypoints[DRONE_WAYPOINT_COUNT][2] = {
-    {-12.0f, -12.0f},
-    { 12.0f, -12.0f},
-    { 12.0f,  12.0f},
-    {-12.0f,  12.0f}
+static const float drone_waypoints[MAX_DRONES][DRONE_WAYPOINT_COUNT][2] = {
+    {
+        {-6.0f,  8.0f},
+        {-6.0f, 13.0f},
+        { 2.0f, 13.0f},
+        { 2.0f,  8.0f}
+    },
+    {
+        { 6.0f, -7.0f},
+        {13.0f, -7.0f},
+        {13.0f,  5.0f},
+        { 6.0f,  5.0f}
+    }
 };
 
 static void add_generator(Scene* scene, float x, float z)
@@ -358,9 +366,12 @@ static void draw_wall(float x, float z, float width, float depth, GLuint texture
 
 static void draw_exit_door(const Scene* scene)
 {
-    if (scene->exit_door_open) {
-        return;
-    }
+    float door_x = 0.0f;
+    float door_y = 0.0f;
+    float door_z = 19.6f;
+    float door_scale = 3.0f;
+    float max_visible_offset = 2.0f;
+
     glDisable(GL_CULL_FACE);
 
     glEnable(GL_TEXTURE_2D);
@@ -370,15 +381,38 @@ static void draw_exit_door(const Scene* scene)
 
     glColor3f(1.0f, 1.0f, 1.0f);
 
+    /* fix ajtókeret */
     glPushMatrix();
 
-    glTranslatef(0.0f, 0.0f, 19.6f);
+    glTranslatef(door_x, door_y, door_z);
     glRotatef(180.0f, 0.0f, 1.0f, 0.0f);
-    glScalef(0.03f, 0.03f, 0.03f);
+    glScalef(door_scale, door_scale, door_scale);
 
-    render_model(&scene->door_model);
+    render_model(&scene->door_frame_model);
 
     glPopMatrix();
+
+    /*
+        mozgó ajtópanel
+        Ha már teljesen elcsúszott, nem rajzoljuk tovább,
+        így nem látszik ki oldalt.
+    */
+    if (scene->exit_door_offset < max_visible_offset) {
+        glPushMatrix();
+
+        glTranslatef(
+            door_x + scene->exit_door_offset,
+            door_y,
+            door_z
+        );
+
+        glRotatef(180.0f, 0.0f, 1.0f, 0.0f);
+        glScalef(door_scale, door_scale, door_scale);
+
+        render_model(&scene->door_panel_model);
+
+        glPopMatrix();
+    }
 
     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
@@ -603,13 +637,13 @@ void toggle_hard_mode(Scene* scene)
     }
 }
 
-static void init_drone(Drone* drone)
+static void init_drone(Drone* drone, int index)
 {
-    drone->x = drone_waypoints[0][0];
+    drone->x = drone_waypoints[index][0][0];
     drone->y = 1.4f;
-    drone->z = drone_waypoints[0][1];
+    drone->z = drone_waypoints[index][0][1];
 
-    drone->speed = 2.0f;
+    drone->speed = 1.8f;
 
     drone->detection_radius = 5.0f;
     drone->detection_angle = (float)M_PI / 2.0f;
@@ -618,7 +652,7 @@ static void init_drone(Drone* drone)
     drone->current_waypoint = 1;
 }
 
-static void update_drone(Drone* drone, double delta_time)
+static void update_drone(Drone* drone, int index, double delta_time)
 {
     float target_x;
     float target_z;
@@ -628,8 +662,8 @@ static void update_drone(Drone* drone, double delta_time)
     float distance;
     float step;
 
-    target_x = drone_waypoints[drone->current_waypoint][0];
-    target_z = drone_waypoints[drone->current_waypoint][1];
+    target_x = drone_waypoints[index][drone->current_waypoint][0];
+    target_z = drone_waypoints[index][drone->current_waypoint][1];
 
     dx = target_x - drone->x;
     dz = target_z - drone->z;
@@ -793,6 +827,7 @@ void reset_scene(Scene* scene)
     int i;
 
     scene->exit_door_open = false;
+    scene->exit_door_offset = 0.0f;
 
     if (scene->exit_door_collider_index >= 0) {
         scene->colliders[scene->exit_door_collider_index].active = true;
@@ -807,7 +842,8 @@ void reset_scene(Scene* scene)
     scene->game_over = false;
     scene->game_won = false;
 
-    init_drone(&scene->drone);
+    init_drone(&scene->drones[0], 0);
+    init_drone(&scene->drones[1], 1);
     init_particles(scene);
     init_spark_sources(scene);
 
@@ -845,9 +881,11 @@ void init_scene(Scene* scene)
     scene->floor_size = 20.0f;
 
     scene->collider_count = 0;
+    scene->wall_count = 0;
 
     scene->exit_door_open = false;
     scene->exit_door_collider_index = -1;
+    scene->exit_door_offset = 0.0f;
 
     scene->generator_count = 0;
     scene->active_generator_count = 0;
@@ -855,7 +893,9 @@ void init_scene(Scene* scene)
     scene->hard_mode = false;
     scene->game_over = false;
     scene->game_won = false;
-    init_drone(&scene->drone);
+    scene->drone_count = MAX_DRONES;
+    init_drone(&scene->drones[0], 0);
+    init_drone(&scene->drones[1], 1);
 
     srand((unsigned int)time(NULL));
     init_particles(scene);
@@ -863,39 +903,104 @@ void init_scene(Scene* scene)
     scene->floor_texture = load_texture("assets/textures/floor.bmp");
     scene->wall_texture = load_texture("assets/textures/wall.bmp");
     scene->door_texture = load_texture("assets/textures/door.bmp");
-    load_model(&scene->door_model, "assets/models/door.obj");
+    scene->door_texture = load_texture("assets/textures/door.bmp");
+
+    if (!load_model(&scene->door_frame_model, "assets/models/door_frame.obj")) {
+    printf("Failed to load door_frame.obj\n");
+    }
+
+    if (!load_model(&scene->door_panel_model, "assets/models/door_panel.obj")) {
+    printf("Failed to load door_panel.obj\n");
+    }
 
     /* Kulso falak */
-    add_collider(scene, 0.0f, -20.0f, 40.0f, 0.4f);
-    add_collider(scene, 0.0f,  20.0f, 40.0f, 0.4f);
-    add_collider(scene, -20.0f, 0.0f, 0.4f, 40.0f);
-    add_collider(scene,  20.0f, 0.0f, 0.4f, 40.0f);
+    /* Kulso falak */
+    add_collider(scene, 0.0f, -20.0f, 40.0f, 0.4f);      /* also fal */
+    add_collider(scene, -11.5f, 20.0f, 17.0f, 0.4f);     /* felso bal fal */
+    add_collider(scene,  11.5f, 20.0f, 17.0f, 0.4f);     /* felso jobb fal */
+    add_collider(scene, -20.0f, 0.0f, 0.4f, 40.0f);      /* bal fal */
+    add_collider(scene,  20.0f, 0.0f, 0.4f, 40.0f);      /* jobb fal */
 
     /* Belso falak */
-    add_collider(scene, -3.0f, 0.0f, 0.4f, 8.0f);
-    add_collider(scene,  4.0f, -2.0f, 0.4f, 6.0f);
-    add_collider(scene,  1.0f, 4.0f, 6.0f, 0.4f);
+    /* Belso falak / szobak / folyosok */
+
+    /* bal also generator szoba */
+    add_collider(scene, -13.0f, -16.0f, 10.0f, 0.4f);
+    add_collider(scene, -13.0f, -8.0f, 10.0f, 0.4f);
+    add_collider(scene, -18.0f, -12.0f, 0.4f, 8.0f);
+    add_collider(scene, -8.0f, -12.0f, 0.4f, 8.0f);
+
+    /* jobb also generator szoba */
+    add_collider(scene, 13.0f, -16.0f, 10.0f, 0.4f);
+    add_collider(scene, 13.0f, -8.0f, 10.0f, 0.4f);
+    add_collider(scene, 8.0f, -12.0f, 0.4f, 8.0f);
+    add_collider(scene, 18.0f, -12.0f, 0.4f, 8.0f);
+
+    /* jobb felso generator szoba */
+    add_collider(scene, 13.0f, 10.0f, 10.0f, 0.4f);
+    add_collider(scene, 13.0f, 18.0f, 10.0f, 0.4f);
+    add_collider(scene, 8.0f, 14.0f, 0.4f, 8.0f);
+    add_collider(scene, 18.0f, 14.0f, 0.4f, 8.0f);
+
+    /* bal felso szoba / labor */
+    add_collider(scene, -13.0f, 10.0f, 10.0f, 0.4f);
+    add_collider(scene, -13.0f, 18.0f, 10.0f, 0.4f);
+    add_collider(scene, -18.0f, 14.0f, 0.4f, 8.0f);
+    add_collider(scene, -8.0f, 14.0f, 0.4f, 8.0f);
+
+    /* kozepso szoba */
+    add_collider(scene, 0.0f, -6.0f, 8.0f, 0.4f);
+    add_collider(scene, 0.0f, 6.0f, 8.0f, 0.4f);
+    add_collider(scene, -4.0f, 0.0f, 0.4f, 12.0f);
+    add_collider(scene, 4.0f, 0.0f, 0.4f, 12.0f);
+
+    /* folyosokat tagolo falak */
+    add_collider(scene, -10.0f, 0.0f, 0.4f, 8.0f);
+    add_collider(scene, 10.0f, 0.0f, 0.4f, 8.0f);
+
+    add_collider(scene, -4.0f, 9.0f, 8.0f, 0.4f);
+    add_collider(scene, 4.0f, 9.0f, 8.0f, 0.4f);
+
+    add_collider(scene, -4.0f, -9.0f, 8.0f, 0.4f);
+    add_collider(scene, 4.0f, -9.0f, 8.0f, 0.4f);
+
+    /* Eddig tartanak a falak */
+    scene->wall_count = scene->collider_count;
 
     /* Kijarati ajto */
     scene->exit_door_collider_index = scene->collider_count;
     add_collider(scene, 0.0f, 19.7f, 3.0f, 0.4f);
 
     /* Generatorok */
-    add_generator(scene, -6.0f, -6.0f);
-    add_generator(scene,  6.0f, -6.0f);
-    add_generator(scene,  6.0f,  6.0f);
+    add_generator(scene, -14.0f, -12.0f);
+    add_generator(scene,  14.0f, -12.0f);
+    add_generator(scene,  13.0f,  14.0f);
 
-    /* Generatorok colliderjei */
-    add_collider(scene, -6.0f, -6.0f, 1.0f, 1.0f);
-    add_collider(scene,  6.0f, -6.0f, 1.0f, 1.0f);
-    add_collider(scene,  6.0f,  6.0f, 1.0f, 1.0f);
+   /* Generatorok colliderjei */
+    add_collider(scene, -14.0f, -12.0f, 1.0f, 1.0f);
+    add_collider(scene,  14.0f, -12.0f, 1.0f, 1.0f);
+    add_collider(scene,  13.0f,  14.0f, 1.0f, 1.0f);
 }
 
 void update_scene(Scene* scene, double delta_time, float player_x, float player_z)
 {
-    if (scene->exit_door_open && scene->exit_door_collider_index >= 0) {
+    int i;
+    if (scene->exit_door_open) {
+    float max_offset = 2.0f;
+    float open_speed = 1.0f;
+
+    if (scene->exit_door_offset < max_offset) {
+        scene->exit_door_offset += (float)(delta_time * open_speed);
+    }
+
+    if (scene->exit_door_offset > max_offset) {
+        scene->exit_door_offset = max_offset;
+    }
+
+    if (scene->exit_door_collider_index >= 0) {
         scene->colliders[scene->exit_door_collider_index].active = false;
     }
+}
 
     update_particles(scene, delta_time);
 
@@ -903,13 +1008,15 @@ void update_scene(Scene* scene, double delta_time, float player_x, float player_
         return;
     }
 
-    update_drone(&scene->drone, delta_time);
+    for (i = 0; i < scene->drone_count; ++i) {
+    update_drone(&scene->drones[i], i, delta_time);
 
-    if (is_player_detected_by_drone(&scene->drone, player_x, player_z)) {
+    if (is_player_detected_by_drone(&scene->drones[i], player_x, player_z)) {
         scene->game_over = true;
-        printf("GAME OVER: Drone detected the player!\n");
+        printf("GAME OVER: Drone %d detected the player!\n", i + 1);
         return;
     }
+    }   
 
     if (is_player_at_exit(scene, player_x, player_z)) {
         scene->game_won = true;
@@ -925,7 +1032,7 @@ void render_scene(const Scene* scene)
     draw_floor(scene->floor_size, scene->floor_texture);
 
     /* 0-3: kulso falak, 4-6: belso falak */
-    for (i = 0; i < 7; ++i) {
+    for (i = 0; i < scene->wall_count; ++i) {
         draw_wall(
             scene->colliders[i].x,
             scene->colliders[i].z,
@@ -941,15 +1048,17 @@ void render_scene(const Scene* scene)
         draw_generator(&scene->generators[i]);
     }
 
+    for (i = 0; i < scene->drone_count; ++i) {
     draw_detection_sector(
-    scene->drone.x,
-    scene->drone.z,
-    scene->drone.detection_radius,
-    scene->drone.direction_angle,
-    scene->drone.detection_angle
+        scene->drones[i].x,
+        scene->drones[i].z,
+        scene->drones[i].detection_radius,
+        scene->drones[i].direction_angle,
+        scene->drones[i].detection_angle
     );
 
-    draw_drone(&scene->drone);
+    draw_drone(&scene->drones[i]);
+    }
     draw_particles(scene);
 }
 
@@ -970,5 +1079,6 @@ void destroy_scene(Scene* scene)
         scene->door_texture = 0;
     }
 
-    destroy_model(&scene->door_model);
+    destroy_model(&scene->door_frame_model);
+    destroy_model(&scene->door_panel_model);
 }
