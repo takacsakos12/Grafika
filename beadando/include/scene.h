@@ -9,6 +9,8 @@
 #define MAX_COLLIDERS 64
 #define MAX_GENERATORS 3
 #define DRONE_WAYPOINT_COUNT 4
+#define MAX_PARTICLES 200
+#define SPARK_SOURCE_COUNT 2
 
 typedef struct Collider
 {
@@ -41,6 +43,32 @@ typedef struct Drone
     int current_waypoint;
 } Drone;
 
+typedef struct Particle
+{
+    float x;
+    float y;
+    float z;
+
+    float vx;
+    float vy;
+    float vz;
+
+    float life;
+    float max_life;
+
+    bool active;
+} Particle;
+
+typedef struct SparkSource
+{
+    float x;
+    float y;
+    float z;
+
+    float timer;
+    float next_emit_time;
+} SparkSource;
+
 typedef struct Scene
 {
     float floor_size;
@@ -66,6 +94,9 @@ typedef struct Scene
     Drone drone;
     bool game_over;
     bool game_won;
+
+    Particle particles[MAX_PARTICLES];
+    SparkSource spark_sources[SPARK_SOURCE_COUNT];
 
 } Scene;
 

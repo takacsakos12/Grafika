@@ -6,10 +6,162 @@
 #define _USE_MATH_DEFINES
 #include <GL/gl.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 #include <math.h>
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
+
+static float random_float(float min, float max)
+{
+    return min + ((float)rand() / (float)RAND_MAX) * (max - min);
+}
+
+static void init_particles(Scene* scene)
+{
+    int i;
+
+    for (i = 0; i < MAX_PARTICLES; ++i) {
+        scene->particles[i].active = false;
+        scene->particles[i].life = 0.0f;
+        scene->particles[i].max_life = 0.0f;
+    }
+}
+
+
+static void emit_spark(Scene* scene, float x, float y, float z)
+{
+    int i;
+
+    for (i = 0; i < MAX_PARTICLES; ++i) {
+        if (!scene->particles[i].active) {
+            scene->particles[i].x = x;
+            scene->particles[i].y = y;
+            scene->particles[i].z = z;
+
+            scene->particles[i].vx = random_float(-1.5f, 1.5f);
+            scene->particles[i].vy = random_float(1.0f, 3.0f);
+            scene->particles[i].vz = random_float(-1.5f, 1.5f);
+
+            scene->particles[i].max_life = random_float(0.3f, 0.8f);
+            scene->particles[i].life = scene->particles[i].max_life;
+
+            scene->particles[i].active = true;
+
+            return;
+        }
+    }
+}
+
+
+static void update_particles(Scene* scene, double delta_time)
+{
+    int i;
+    int source_index;
+
+    float dt = (float)delta_time;
+
+    /* új szikrák kibocsátása időzítve */
+    for (source_index = 0; source_index < SPARK_SOURCE_COUNT; ++source_index) {
+        scene->spark_sources[source_index].timer += dt;
+
+        if (scene->spark_sources[source_index].timer >= scene->spark_sources[source_index].next_emit_time) {
+            int burst_count;
+            int j;
+
+            burst_count = rand() % 4 + 2; /* 2..5 szikra egyszerre */
+
+            for (j = 0; j < burst_count; ++j) {
+                emit_spark(
+                    scene,
+                    scene->spark_sources[source_index].x,
+                    scene->spark_sources[source_index].y,
+                    scene->spark_sources[source_index].z
+                );
+            }
+
+            scene->spark_sources[source_index].timer = 0.0f;
+            scene->spark_sources[source_index].next_emit_time = random_float(0.3f, 1.5f);
+        }
+    }
+
+    /* meglévő szikrák mozgatása */
+    for (i = 0; i < MAX_PARTICLES; ++i) {
+        if (!scene->particles[i].active) {
+            continue;
+        }
+
+        scene->particles[i].life -= dt;
+
+        if (scene->particles[i].life <= 0.0f) {
+            scene->particles[i].active = false;
+            continue;
+        }
+
+        scene->particles[i].x += scene->particles[i].vx * dt;
+        scene->particles[i].y += scene->particles[i].vy * dt;
+        scene->particles[i].z += scene->particles[i].vz * dt;
+
+        scene->particles[i].vy -= 5.0f * dt;
+    }
+}
+
+static void draw_particles(const Scene* scene)
+{
+    int i;
+    float alpha;
+
+    glDisable(GL_TEXTURE_2D);
+    glDisable(GL_LIGHTING);
+    glDisable(GL_CULL_FACE);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+
+    glPointSize(4.0f);
+
+    glBegin(GL_POINTS);
+
+    for (i = 0; i < MAX_PARTICLES; ++i) {
+        if (!scene->particles[i].active) {
+            continue;
+        }
+
+        alpha = scene->particles[i].life / scene->particles[i].max_life;
+
+        glColor4f(1.0f, 0.65f, 0.05f, alpha);
+
+        glVertex3f(
+            scene->particles[i].x,
+            scene->particles[i].y,
+            scene->particles[i].z
+        );
+    }
+
+    glEnd();
+
+    glPointSize(1.0f);
+
+    glDisable(GL_BLEND);
+    glEnable(GL_CULL_FACE);
+    glEnable(GL_LIGHTING);
+}
+
+static void init_spark_sources(Scene* scene)
+{
+    scene->spark_sources[0].x = -8.0f;
+    scene->spark_sources[0].y = 0.6f;
+    scene->spark_sources[0].z = 3.0f;
+    scene->spark_sources[0].timer = 0.0f;
+    scene->spark_sources[0].next_emit_time = random_float(0.2f, 1.0f);
+
+    scene->spark_sources[1].x = 7.0f;
+    scene->spark_sources[1].y = 0.6f;
+    scene->spark_sources[1].z = 2.0f;
+    scene->spark_sources[1].timer = 0.0f;
+    scene->spark_sources[1].next_emit_time = random_float(0.2f, 1.0f);
+}
 /* ---------- Scene helper functions ---------- */
 
 static void add_collider(Scene* scene, float x, float z, float width, float depth)
@@ -656,6 +808,8 @@ void reset_scene(Scene* scene)
     scene->game_won = false;
 
     init_drone(&scene->drone);
+    init_particles(scene);
+    init_spark_sources(scene);
 
     printf("Game restarted.\n");
 }
@@ -703,6 +857,9 @@ void init_scene(Scene* scene)
     scene->game_won = false;
     init_drone(&scene->drone);
 
+    srand((unsigned int)time(NULL));
+    init_particles(scene);
+    init_spark_sources(scene);
     scene->floor_texture = load_texture("assets/textures/floor.bmp");
     scene->wall_texture = load_texture("assets/textures/wall.bmp");
     scene->door_texture = load_texture("assets/textures/door.bmp");
@@ -739,6 +896,8 @@ void update_scene(Scene* scene, double delta_time, float player_x, float player_
     if (scene->exit_door_open && scene->exit_door_collider_index >= 0) {
         scene->colliders[scene->exit_door_collider_index].active = false;
     }
+
+    update_particles(scene, delta_time);
 
     if (scene->game_over || scene->game_won) {
         return;
@@ -791,6 +950,7 @@ void render_scene(const Scene* scene)
     );
 
     draw_drone(&scene->drone);
+    draw_particles(scene);
 }
 
 void destroy_scene(Scene* scene)
