@@ -404,7 +404,7 @@ static void draw_wall(float x, float z, float width, float depth, GLuint texture
 
 static void draw_ceiling(float size, GLuint texture)
 {
-    float y = 3.05f;
+    float y = 3.0f;
 
     glDisable(GL_CULL_FACE);
 
@@ -442,7 +442,7 @@ static void draw_ceiling(float size, GLuint texture)
 
 static void draw_exit_door(const Scene* scene)
 {
-    float door_x = 0.0f;
+    float door_x = -1.0f;
     float door_y = 0.0f;
     float door_z = 19.6f;
     float door_scale = 3.0f;
@@ -529,22 +529,57 @@ static void draw_generator(const Scene* scene, const Generator* generator)
     glEnable(GL_CULL_FACE);
 }
 
+static void add_inner_door(
+    Scene* scene,
+    float x,
+    float z,
+    float rotation_y,
+    float hinge_side,
+    float open_direction
+)
+{
+    if (scene->inner_door_count >= MAX_INNER_DOORS) {
+        return;
+    }
+
+    scene->inner_doors[scene->inner_door_count].x = x;
+    scene->inner_doors[scene->inner_door_count].z = z;
+    scene->inner_doors[scene->inner_door_count].rotation_y = rotation_y;
+
+    scene->inner_doors[scene->inner_door_count].hinge_side = hinge_side;
+    scene->inner_doors[scene->inner_door_count].open_direction = open_direction;
+
+    scene->inner_doors[scene->inner_door_count].open = false;
+    scene->inner_doors[scene->inner_door_count].open_offset = 0.0f;
+    scene->inner_doors[scene->inner_door_count].auto_close_timer = 0.0f;
+
+    scene->inner_doors[scene->inner_door_count].collider_index = scene->collider_count;
+
+    if ((int)rotation_y == 90 || (int)rotation_y == 270) {
+    add_collider(scene, x, z, 0.4f, 1.6f);
+    }
+    else {
+    add_collider(scene, x, z, 1.6f, 0.4f);
+    }
+
+    scene->inner_door_count++;
+}
+
 static void draw_inner_door(const Scene* scene, const InnerDoor* door)
 {
     float door_y = 0.0f;
-    float door_scale = 1.0f;
+    float door_scale = 1.5f;
 
-    float draw_x = door->x;
-    float draw_z = door->z;
+    /*
+        A modell tényleges szélessége játékegységben.
+        Ha nyitáskor a zsanér széle elmászik, ezt kell állítani.
+    */
+    float door_visual_width = 1.6f;
 
-    if (door->open) {
-        if ((int)door->rotation_y == 90 || (int)door->rotation_y == 270) {
-            draw_x += door->open_offset;
-        }
-        else {
-            draw_z += door->open_offset;
-        }
-    }
+    float base_rotation = door->rotation_y + 90.0f;
+    float angle = door->open_offset * door->open_direction;
+
+    float hinge_offset = door_visual_width / 2.0f;
 
     glDisable(GL_CULL_FACE);
 
@@ -556,8 +591,32 @@ static void draw_inner_door(const Scene* scene, const InnerDoor* door)
 
     glPushMatrix();
 
-    glTranslatef(draw_x, door_y, draw_z);
-    glRotatef(door->rotation_y, 0.0f, 1.0f, 0.0f);
+    /*
+        1. Ajtó középpontja a pályán.
+    */
+    glTranslatef(door->x, door_y, door->z);
+
+    /*
+        2. Alap forgatás, hogy a modell a falnyílás irányába álljon.
+    */
+    glRotatef(base_rotation, 0.0f, 1.0f, 0.0f);
+
+    /*
+        3. Átmegyünk az ajtó egyik szélére.
+           hinge_side = -1 vagy 1.
+    */
+    glTranslatef(door->hinge_side * hinge_offset, 0.0f, 0.0f);
+
+    /*
+        4. Itt forgatunk, tehát az ajtó széle lesz a zsanér.
+    */
+    glRotatef(angle, 0.0f, 1.0f, 0.0f);
+
+    /*
+        5. Visszamegyünk a modell közepéhez.
+    */
+    glTranslatef(-door->hinge_side * hinge_offset, 0.0f, 0.0f);
+
     glScalef(door_scale, door_scale, door_scale);
 
     render_model(&scene->inner_door_model);
@@ -656,6 +715,35 @@ void interact_scene(Scene* scene, float player_x, float player_z)
     float distance_squared;
     float interaction_radius = 2.0f;
 
+    /* 1. Belső ajtók */
+    for (i = 0; i < scene->inner_door_count; ++i) {
+        dx = player_x - scene->inner_doors[i].x;
+        dz = player_z - scene->inner_doors[i].z;
+
+        distance_squared = dx * dx + dz * dz;
+
+        if (distance_squared <= interaction_radius * interaction_radius) {
+            InnerDoor* door = &scene->inner_doors[i];
+
+            door->open = !door->open;
+            door->auto_close_timer = 0.0f;
+
+            if (door->collider_index >= 0) {
+                scene->colliders[door->collider_index].active = false;
+            }
+
+            if (door->open) {
+                printf("Inner door opened.\n");
+            }
+            else {
+                printf("Inner door closing.\n");
+            }
+
+            return;
+        }
+    }
+
+    /* 2. Generátorok */
     for (i = 0; i < scene->generator_count; ++i) {
         if (scene->generators[i].active) {
             continue;
@@ -690,32 +778,6 @@ void interact_scene(Scene* scene, float player_x, float player_z)
     }
 
     printf("No interactable object nearby.\n");
-
-    for (i = 0; i < scene->inner_door_count; ++i) {
-    float dx = player_x - scene->inner_doors[i].x;
-    float dz = player_z - scene->inner_doors[i].z;
-    float distance_squared = dx * dx + dz * dz;
-
-    if (distance_squared <= 2.0f * 2.0f) {
-        InnerDoor* door = &scene->inner_doors[i];
-
-        door->open = !door->open;
-        door->auto_close_timer = 0.0f;
-
-        if (door->collider_index >= 0) {
-            scene->colliders[door->collider_index].active = !door->open;
-        }
-
-        if (door->open) {
-            printf("Inner door opened.\n");
-        }
-        else {
-            printf("Inner door closed.\n");
-        }
-
-        return;
-    }
-    }
 }
 
 void set_scene_lighting(const Scene* scene)
@@ -1002,31 +1064,33 @@ static void draw_drone(const Drone* drone)
     glPopMatrix();
 }
 
-static void add_inner_door(Scene* scene, float x, float z, float rotation_y)
+
+bool is_player_at_exit(const Scene* scene, float player_x, float player_z)
 {
-    if (scene->inner_door_count >= MAX_INNER_DOORS) {
-        return;
+    float exit_x = -1.0f;
+    float exit_z = 19.0f;
+    float exit_radius = 0.5f;
+
+    float dx;
+    float dz;
+    float distance_squared;
+
+    if (!scene->exit_door_open) {
+        return false;
     }
 
-    scene->inner_doors[scene->inner_door_count].x = x;
-    scene->inner_doors[scene->inner_door_count].z = z;
-    scene->inner_doors[scene->inner_door_count].rotation_y = rotation_y;
+    dx = player_x - exit_x;
+    dz = player_z - exit_z;
 
-    scene->inner_doors[scene->inner_door_count].open = false;
-    scene->inner_doors[scene->inner_door_count].open_offset = 0.0f;
-    scene->inner_doors[scene->inner_door_count].auto_close_timer = 0.0f;
+    distance_squared = dx * dx + dz * dz;
 
-    scene->inner_doors[scene->inner_door_count].collider_index = scene->collider_count;
-
-    if ((int)rotation_y == 90 || (int)rotation_y == 270) {
-        add_collider(scene, x, z, 0.4f, 1.5f);
-    }
-    else {
-        add_collider(scene, x, z, 1.5f, 0.4f);
-    }
-
-    scene->inner_door_count++;
+    return distance_squared <= exit_radius * exit_radius;
 }
+
+
+
+/* ---------- Scene lifecycle ---------- */
+
 
 void reset_scene(Scene* scene)
 {
@@ -1065,33 +1129,6 @@ void reset_scene(Scene* scene)
 
     printf("Game restarted.\n");
 }
-
-bool is_player_at_exit(const Scene* scene, float player_x, float player_z)
-{
-    float exit_x = 0.0f;
-    float exit_z = 19.0f;
-    float exit_radius = 2.0f;
-
-    float dx;
-    float dz;
-    float distance_squared;
-
-    if (!scene->exit_door_open) {
-        return false;
-    }
-
-    dx = player_x - exit_x;
-    dz = player_z - exit_z;
-
-    distance_squared = dx * dx + dz * dz;
-
-    return distance_squared <= exit_radius * exit_radius;
-}
-
-
-
-/* ---------- Scene lifecycle ---------- */
-
 void init_scene(Scene* scene)
 {
     scene->floor_size = 20.0f;
@@ -1133,16 +1170,18 @@ void init_scene(Scene* scene)
     if (!load_model(&scene->generator_model, "assets/models/generator.obj")) {
     printf("Failed to load generator.obj\n");
     }
-    //scene->inner_door_texture = load_texture("assets/textures/inner_door.bmp");
+    scene->inner_door_texture = load_texture("assets/textures/inner_door.bmp");
 
     if (!load_model(&scene->inner_door_model, "assets/models/inner_door.obj")) {
     printf("Failed to load inner_door.obj\n");
     }
 
-  /* =========================
+ /* =========================
    FALAK A VEGLEGES GEOGEBRA RAJZ ALAPJAN
-   x = jatek x
-   GeoGebra y = jatek z
+   JAVITVA:
+   - inner_door atjarok szukitve kb. 1.6 szelesre
+   - x = jatek x
+   - GeoGebra y = jatek z
    ========================= */
 
 /* Kulso falak */
@@ -1173,7 +1212,10 @@ add_vwall(scene, -2.0f, 18.0f, 20.0f);
 add_hwall(scene, -5.0f, -2.0f, 15.0f);
 add_vwall(scene, -5.0f, 13.0f, 15.0f);
 add_vwall(scene, -2.0f, 15.0f, 18.0f);
-add_vwall(scene, -5.0f, 10.5f, 13.0f);
+
+/* JAVITVA: x = -5 ajto, nyilas kb. z = 9.2 .. 10.8 */
+add_vwall(scene, -5.0f, 10.8f, 13.0f);
+
 add_hwall(scene, -11.5f, -5.0f, 12.0f);
 add_vwall(scene, -11.5f, 12.0f, 16.0f);
 add_vwall(scene, -11.5f, 16.0f, 18.5f);
@@ -1205,22 +1247,36 @@ add_vwall(scene, -7.0f, -20.0f, -9.0f);
 add_hwall(scene, -10.0f, -7.0f, -9.0f);
 add_vwall(scene, -10.0f, -9.0f, -6.0f);
 add_hwall(scene, -14.0f, -10.0f, -6.0f);
-add_hwall(scene, -20.0f, -17.0f, -6.0f);
-add_vwall(scene, -10.0f, -2.0f, 0.0f);
+
+/* JAVITVA: z = -6 ajto, nyilas kb. x = -16.3 .. -14.7 */
+add_hwall(scene, -20.0f, -16.3f, -6.0f);
+add_hwall(scene, -14.7f, -10.0f, -6.0f);
+
+/* JAVITVA: x = -10 ajto, nyilas kb. z = 0.7 .. 2.3 */
+add_vwall(scene, -10.0f, -2.0f, 0.7f);
 
 add_hwall(scene, -20.0f, -16.0f, -14.0f);
-add_vwall(scene, -16.0f, -16.0f, -14.0f);
+
+/* JAVITVA: x = -16 ajto, nyilas kb. z = -13.8 .. -12.2 */
+add_vwall(scene, -16.0f, -16.0f, -13.8f);
+
 add_hwall(scene, -16.0f, -10.0f, -16.0f);
 add_vwall(scene, -10.0f, -16.0f, -14.0f);
 
 add_hwall(scene, -20.0f, -14.0f, -8.0f);
 add_vwall(scene, -14.0f, -10.0f, -8.0f);
 add_hwall(scene, -16.0f, -14.0f, -10.0f);
-add_vwall(scene, -16.0f, -12.0f, -10.0f);
+
+/* JAVITVA: x = -16 ajto masik oldala */
+add_vwall(scene, -16.0f, -12.2f, -10.0f);
+
 add_hwall(scene, -16.0f, -14.0f, -12.0f);
 
 /* Bal kozep / szikrazo oldal */
-add_vwall(scene, -10.0f, 3.0f, 9.0f);
+
+/* JAVITVA: x = -10 ajto masik oldala */
+add_vwall(scene, -10.0f, 2.3f, 9.0f);
+
 add_hwall(scene, -10.0f, -6.0f, 9.0f);
 add_hwall(scene, -6.0f, -2.5f, 9.0f);
 add_vwall(scene, -2.5f, 9.0f, 11.0f);
@@ -1242,7 +1298,10 @@ add_vwall(scene, -17.0f, 5.0f, 6.0f);
 add_hwall(scene, -17.0f, -15.0f, 5.0f);
 
 /* Kozepso nagy terem */
-add_vwall(scene, 5.0f, -5.0f, 9.0f);
+
+/* JAVITVA: x = 5 ajto also oldala, nyilas kb. z = 9.2 .. 10.8 */
+add_vwall(scene, 5.0f, -5.0f, 9.2f);
+
 add_vwall(scene, -6.0f, -5.0f, 9.0f);
 add_hwall(scene, -4.0f, 5.0f, -5.0f);
 
@@ -1253,8 +1312,11 @@ add_vwall(scene, 10.0f, 6.0f, 7.0f);
 add_hwall(scene, 8.0f, 10.0f, 7.0f);
 add_vwall(scene, 8.0f, 7.0f, 9.0f);
 add_hwall(scene, 5.0f, 8.0f, 9.0f);
-add_vwall(scene, 14.0f, 1.0f, 4.0f);
-add_vwall(scene, 14.0f, -5.0f, -2.0f);
+
+/* JAVITVA: x = 14 ajto, nyilas kb. z = -1.3 .. 0.3 */
+add_vwall(scene, 14.0f, 0.3f, 4.0f);
+add_vwall(scene, 14.0f, -5.0f, -1.3f);
+
 add_hwall(scene, 11.0f, 14.0f, -5.0f);
 
 /* Jobb also / jobb oldal */
@@ -1264,13 +1326,26 @@ add_hwall(scene, 17.0f, 20.0f, -10.0f);
 add_vwall(scene, 14.0f, -18.5f, -10.0f);
 add_hwall(scene, 18.0f, 20.0f, -8.0f);
 
+/* JAVITVA: x = 5 ajto felso oldala */
+add_vwall(scene, 5.0f, 10.8f, 17.0f);
+
 /* Eddig tartanak a falak */
 scene->wall_count = scene->collider_count;
    
 /* Kijarati ajto collider */
-/* Kijarati ajto collider */
 scene->exit_door_collider_index = scene->collider_count;
-add_collider(scene, 0.0f, 19.7f, 3.0f, 0.4f);
+add_collider(scene, -1.0f, 19.7f, 3.0f, 0.4f);
+
+/* Függőleges falnyílások */
+add_inner_door(scene, -5.0f,   10.0f, 90.0f, 1.0f,  -1.0f);
+add_inner_door(scene, -16.0f, -12.85f, 90.0f, 1.0f,  -1.0f);
+add_inner_door(scene, -10.0f,   1.5f, 90.0f, 1.0f,  -1.0f);
+add_inner_door(scene,  5.0f,   10.0f, 90.0f,  -1.0f, 1.0f);
+add_inner_door(scene, 14.0f,   -0.5f, 90.0f,  -1.0f, 1.0f);
+add_inner_door(scene, -15.35f, -6.0f, 0.0f, 1.0f,  -1.0f);
+
+/* Vízszintes falnyílás */
+add_inner_door(scene, -15.5f,  -6.0f, 0.0f, 1.0f,  -1.0f);
 
 /* Generatorok */
 add_generator(scene, -15.0f, -11.0f);
@@ -1281,16 +1356,6 @@ add_generator(scene, -10.0f,  17.0f);
 add_collider(scene, -15.0f, -11.0f, 1.0f, 1.0f);
 add_collider(scene,  15.5f,  -3.5f, 1.0f, 1.0f);
 add_collider(scene, -10.0f,  17.0f, 1.0f, 1.0f);
-
-/* Eddig tartanak a falak */
-scene->wall_count = scene->collider_count;
-
-/* Belső ajtók */
-add_inner_door(scene, -12.0f, 3.0f, 90.0f);
-add_inner_door(scene, 12.0f, 3.0f, 90.0f);
-add_inner_door(scene, -10.0f, 15.0f, 90.0f);
-add_inner_door(scene, 10.0f, 15.0f, 90.0f);
-
 }
 
 void update_scene(Scene* scene, double delta_time, float player_x, float player_z)
@@ -1335,16 +1400,20 @@ void update_scene(Scene* scene, double delta_time, float player_x, float player_
         return;
     }
 
-    for (i = 0; i < scene->inner_door_count; ++i) {
+   for (i = 0; i < scene->inner_door_count; ++i) {
     InnerDoor* door = &scene->inner_doors[i];
 
     if (door->open) {
-        if (door->open_offset < 1.5f) {
-            door->open_offset += (float)(delta_time * 1.5f);
+        if (door->collider_index >= 0) {
+            scene->colliders[door->collider_index].active = false;
         }
 
-        if (door->open_offset > 1.5f) {
-            door->open_offset = 1.5f;
+        if (door->open_offset < 90.0f) {
+            door->open_offset += (float)(delta_time * 120.0f);
+        }
+
+        if (door->open_offset > 90.0f) {
+            door->open_offset = 90.0f;
         }
 
         door->auto_close_timer += (float)delta_time;
@@ -1352,30 +1421,34 @@ void update_scene(Scene* scene, double delta_time, float player_x, float player_
         if (door->auto_close_timer >= 5.0f) {
             door->open = false;
             door->auto_close_timer = 0.0f;
+        }
+    }
+    else {
+        if (door->open_offset > 0.0f) {
+            door->open_offset -= (float)(delta_time * 120.0f);
+        }
+
+        if (door->open_offset <= 0.0f) {
+            door->open_offset = 0.0f;
 
             if (door->collider_index >= 0) {
                 scene->colliders[door->collider_index].active = true;
             }
         }
-    }
-    else {
-        if (door->open_offset > 0.0f) {
-            door->open_offset -= (float)(delta_time * 1.5f);
-        }
-
-        if (door->open_offset < 0.0f) {
-            door->open_offset = 0.0f;
+        else {
+            if (door->collider_index >= 0) {
+                scene->colliders[door->collider_index].active = false;
+            }
         }
     }
     }
-
 }
 
 void render_scene(const Scene* scene)
 {
     int i;
 
-    draw_ceiling(scene->floor_size, scene->wall_texture);
+    //draw_ceiling(scene->floor_size, scene->wall_texture);
     draw_floor(scene->floor_size, scene->floor_texture);
     draw_ceiling(scene->floor_size, scene->ceiling_texture);
 

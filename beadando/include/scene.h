@@ -80,6 +80,8 @@ typedef struct InnerDoor
     bool open;
     float open_offset;
     float auto_close_timer;
+    float hinge_side;
+    float open_direction;
 
     int collider_index;
 } InnerDoor;
