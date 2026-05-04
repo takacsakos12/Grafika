@@ -14,6 +14,7 @@
 #define SPARK_SOURCE_COUNT 2
 #define MAX_INNER_DOORS 8
 #define MAX_CRATES 32
+#define MAX_PLANT_CAPSULES 32
 
 typedef struct Collider
 {
@@ -97,6 +98,16 @@ typedef struct Crate
     int collider_index;
 } Crate;
 
+typedef struct PlantCapsule
+{
+    float x;
+    float y;
+    float z;
+    float rotation_y;
+    float scale;
+    int collider_index;
+} PlantCapsule;
+
 typedef struct Scene
 {
     float floor_size;
@@ -132,8 +143,12 @@ typedef struct Scene
     Model desk_chair_model;
     GLuint desk_chair_texture;
 
+    PlantCapsule plant_capsules[MAX_PLANT_CAPSULES];
+    int plant_capsule_count;
+
     Model plant_capsule_model;
     GLuint plant_capsule_texture;
+
     GLuint generator_texture;
     float exit_door_offset;
 

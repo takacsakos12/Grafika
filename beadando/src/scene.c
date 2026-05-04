@@ -273,6 +273,33 @@ static void add_crate(
     scene->crate_count++;
 }
 
+static void add_plant_capsule(
+    Scene* scene,
+    float x,
+    float y,
+    float z,
+    float rotation_y,
+    float scale,
+    float collider_width,
+    float collider_depth
+)
+{
+    if (scene->plant_capsule_count >= MAX_PLANT_CAPSULES) {
+        return;
+    }
+
+    scene->plant_capsules[scene->plant_capsule_count].x = x;
+    scene->plant_capsules[scene->plant_capsule_count].y = y;
+    scene->plant_capsules[scene->plant_capsule_count].z = z;
+    scene->plant_capsules[scene->plant_capsule_count].rotation_y = rotation_y;
+    scene->plant_capsules[scene->plant_capsule_count].scale = scale;
+
+    scene->plant_capsules[scene->plant_capsule_count].collider_index = scene->collider_count;
+    add_collider(scene, x, z, collider_width, collider_depth);
+
+    scene->plant_capsule_count++;
+}
+
 static void add_generator(Scene* scene, float x, float z)
 {
     if (scene->generator_count >= MAX_GENERATORS) {
@@ -1133,7 +1160,7 @@ static void draw_drone(const Drone* drone)
 
 bool is_player_at_exit(const Scene* scene, float player_x, float player_z)
 {
-    float exit_x = -1.0f;
+    float exit_x = 3.0f;
     float exit_z = 19.0f;
     float exit_radius = 0.5f;
 
@@ -1215,6 +1242,7 @@ void init_scene(Scene* scene)
     scene->game_won = false;
     scene->drone_count = MAX_DRONES;
     scene->inner_door_count = 0;
+    scene->plant_capsule_count = 0;
     init_drone(&scene->drones[0], 0);
     init_drone(&scene->drones[1], 1);
 
@@ -1292,9 +1320,9 @@ void init_scene(Scene* scene)
     add_hwall(scene, -20.0f, 20.0f, -20.0f);
     add_vwall(scene, 20.0f, -20.0f, 20.0f);
 
-    /* Felso fal kijarati nyilassal */
-    add_hwall(scene, 1.0f, 20.0f, 20.0f);
-    add_hwall(scene, -20.0f, -2.0f, 20.0f);
+    /* Felso fal kijarati nyilassal - exit ajto x = 3.0 */
+    add_hwall(scene, -20.0f, 1.5f, 20.0f);
+    add_hwall(scene, 4.5f, 20.0f, 20.0f);
 
 /* Bal oldal / bal felso */
     add_hwall(scene, -20.0f, -10.0f, 0.0f);
@@ -1599,6 +1627,53 @@ add_collider(scene, 15.5f, 13.0f, 1.0f, 1.0f);
 add_crate(scene, 13.0f, 0.7f, 16.0f, 90.0f, 0.01f);
 add_collider(scene, 13.0f, 16.0f, 1.0f, 1.0f);
 add_crate(scene, 13.0f, 1.5f, 16.0f, 90.0f, 0.01f);
+
+/* =========================
+   PLANT CAPSULE DEKORACIOK COLLIDERREL
+   scale = 0.01f
+   collider kb. 0.8 x 0.8
+   ========================= */
+
+/* Bal felso / labor resz */
+add_plant_capsule(scene, -17.0f, 0.0f, 14.0f, 0.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, -10.5f, 0.0f, 17.5f, 90.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, -6.5f, 0.0f, 16.5f, 180.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, -15.0f, 0.0f, 18.0f, 270.0f, 10.0f, 0.8f, 0.8f);
+
+/* Bal kozep / szikrazo resz */
+add_plant_capsule(scene, -15.5f, 0.0f, 4.5f, 0.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, -18.0f, 0.0f, 6.8f, 90.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, -13.5f, 0.0f, 8.2f, 180.0f, 10.0f, 0.8f, 0.8f);
+
+/* Bal also / raktar kornyeke */
+add_plant_capsule(scene, -18.0f, 0.0f, -13.0f, 0.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, -12.5f, 0.0f, -12.5f, 90.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, -18.0f, 0.0f, -8.5f, 180.0f, 10.0f, 0.8f, 0.8f);
+
+/* Felso kozep */
+add_plant_capsule(scene, -3.5f, 0.0f, 16.0f, 0.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, 2.5f, 0.0f, 16.5f, 90.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, 7.5f, 0.0f, 15.0f, 180.0f, 10.0f, 0.8f, 0.8f);
+
+/* Jobb felso */
+add_plant_capsule(scene, 8.5f, 0.0f, 14.5f, 90.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, 16.0f, 0.0f, 13.0f, 0.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, 14.5f, 0.0f, 17.0f, 180.0f, 10.0f, 0.8f, 0.8f);
+
+/* Jobb kozep / gepterem */
+add_plant_capsule(scene, 14.5f, 0.0f, 2.0f, 180.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, 11.5f, 0.0f, 5.5f, 90.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, 16.5f, 0.0f, 6.5f, 270.0f, 10.0f, 0.8f, 0.8f);
+
+/* Jobb also */
+add_plant_capsule(scene, 10.5f, 0.0f, -13.5f, 0.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, 16.5f, 0.0f, -12.0f, 90.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, 18.0f, 0.0f, -8.5f, 180.0f, 10.0f, 0.8f, 0.8f);
+
+/* Kozepso terem */
+add_plant_capsule(scene, 4.0f, 0.0f, 6.0f, 90.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, -3.5f, 0.0f, 6.5f, 180.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, 2.0f, 0.0f, -2.5f, 270.0f, 10.0f, 0.8f, 0.8f);
 }
 
 void update_scene(Scene* scene, double delta_time, float player_x, float player_z)
@@ -1808,4 +1883,4 @@ void destroy_scene(Scene* scene)
     destroy_model(&scene->plant_capsule_model);
 
     destroy_model(&scene->inner_door_model);
-}
+    }
