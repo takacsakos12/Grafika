@@ -12,6 +12,7 @@
 #define MAX_DRONES 2
 #define MAX_PARTICLES 200
 #define SPARK_SOURCE_COUNT 2
+#define MAX_INNER_DOORS 8
 
 typedef struct Collider
 {
@@ -70,6 +71,19 @@ typedef struct SparkSource
     float next_emit_time;
 } SparkSource;
 
+typedef struct InnerDoor
+{
+    float x;
+    float z;
+    float rotation_y;
+
+    bool open;
+    float open_offset;
+    float auto_close_timer;
+
+    int collider_index;
+} InnerDoor;
+
 typedef struct Scene
 {
     float floor_size;
@@ -87,7 +101,11 @@ typedef struct Scene
 
     GLuint floor_texture;
     GLuint wall_texture;
-
+    GLuint ceiling_texture;
+    InnerDoor inner_doors[MAX_INNER_DOORS];
+    int inner_door_count;
+    Model inner_door_model;
+    GLuint inner_door_texture;
     Model door_frame_model;
     Model door_panel_model;
     GLuint door_texture;

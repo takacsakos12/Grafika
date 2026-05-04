@@ -402,6 +402,44 @@ static void draw_wall(float x, float z, float width, float depth, GLuint texture
     glDisable(GL_TEXTURE_2D);
 }
 
+static void draw_ceiling(float size, GLuint texture)
+{
+    float y = 3.05f;
+
+    glDisable(GL_CULL_FACE);
+
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+    glColor3f(0.75f, 0.75f, 0.75f);
+
+    glBegin(GL_QUADS);
+
+    /*
+        Lefelé néző normál, mert alulról látjuk a tetőt.
+    */
+    glNormal3f(0.0f, -1.0f, 0.0f);
+
+    glTexCoord2f(0.0f, 0.0f);
+    glVertex3f(-size, y,  size);
+
+    glTexCoord2f(8.0f, 0.0f);
+    glVertex3f( size, y,  size);
+
+    glTexCoord2f(8.0f, 8.0f);
+    glVertex3f( size, y, -size);
+
+    glTexCoord2f(0.0f, 8.0f);
+    glVertex3f(-size, y, -size);
+
+    glEnd();
+
+    glDisable(GL_TEXTURE_2D);
+    glEnable(GL_CULL_FACE);
+}
+
 static void draw_exit_door(const Scene* scene)
 {
     float door_x = 0.0f;
@@ -484,6 +522,45 @@ static void draw_generator(const Scene* scene, const Generator* generator)
     glScalef(generator_scale, generator_scale, generator_scale);
 
     render_model(&scene->generator_model);
+
+    glPopMatrix();
+
+    glDisable(GL_TEXTURE_2D);
+    glEnable(GL_CULL_FACE);
+}
+
+static void draw_inner_door(const Scene* scene, const InnerDoor* door)
+{
+    float door_y = 0.0f;
+    float door_scale = 1.0f;
+
+    float draw_x = door->x;
+    float draw_z = door->z;
+
+    if (door->open) {
+        if ((int)door->rotation_y == 90 || (int)door->rotation_y == 270) {
+            draw_x += door->open_offset;
+        }
+        else {
+            draw_z += door->open_offset;
+        }
+    }
+
+    glDisable(GL_CULL_FACE);
+
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, scene->inner_door_texture);
+
+    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+    glColor3f(1.0f, 1.0f, 1.0f);
+
+    glPushMatrix();
+
+    glTranslatef(draw_x, door_y, draw_z);
+    glRotatef(door->rotation_y, 0.0f, 1.0f, 0.0f);
+    glScalef(door_scale, door_scale, door_scale);
+
+    render_model(&scene->inner_door_model);
 
     glPopMatrix();
 
@@ -613,6 +690,32 @@ void interact_scene(Scene* scene, float player_x, float player_z)
     }
 
     printf("No interactable object nearby.\n");
+
+    for (i = 0; i < scene->inner_door_count; ++i) {
+    float dx = player_x - scene->inner_doors[i].x;
+    float dz = player_z - scene->inner_doors[i].z;
+    float distance_squared = dx * dx + dz * dz;
+
+    if (distance_squared <= 2.0f * 2.0f) {
+        InnerDoor* door = &scene->inner_doors[i];
+
+        door->open = !door->open;
+        door->auto_close_timer = 0.0f;
+
+        if (door->collider_index >= 0) {
+            scene->colliders[door->collider_index].active = !door->open;
+        }
+
+        if (door->open) {
+            printf("Inner door opened.\n");
+        }
+        else {
+            printf("Inner door closed.\n");
+        }
+
+        return;
+    }
+    }
 }
 
 void set_scene_lighting(const Scene* scene)
@@ -899,6 +1002,32 @@ static void draw_drone(const Drone* drone)
     glPopMatrix();
 }
 
+static void add_inner_door(Scene* scene, float x, float z, float rotation_y)
+{
+    if (scene->inner_door_count >= MAX_INNER_DOORS) {
+        return;
+    }
+
+    scene->inner_doors[scene->inner_door_count].x = x;
+    scene->inner_doors[scene->inner_door_count].z = z;
+    scene->inner_doors[scene->inner_door_count].rotation_y = rotation_y;
+
+    scene->inner_doors[scene->inner_door_count].open = false;
+    scene->inner_doors[scene->inner_door_count].open_offset = 0.0f;
+    scene->inner_doors[scene->inner_door_count].auto_close_timer = 0.0f;
+
+    scene->inner_doors[scene->inner_door_count].collider_index = scene->collider_count;
+
+    if ((int)rotation_y == 90 || (int)rotation_y == 270) {
+        add_collider(scene, x, z, 0.4f, 1.5f);
+    }
+    else {
+        add_collider(scene, x, z, 1.5f, 0.4f);
+    }
+
+    scene->inner_door_count++;
+}
+
 void reset_scene(Scene* scene)
 {
     int i;
@@ -914,6 +1043,16 @@ void reset_scene(Scene* scene)
 
     for (i = 0; i < scene->generator_count; ++i) {
         scene->generators[i].active = false;
+    }
+
+    for (i = 0; i < scene->inner_door_count; ++i) {
+    scene->inner_doors[i].open = false;
+    scene->inner_doors[i].open_offset = 0.0f;
+    scene->inner_doors[i].auto_close_timer = 0.0f;
+
+    if (scene->inner_doors[i].collider_index >= 0) {
+        scene->colliders[scene->inner_doors[i].collider_index].active = true;
+    }
     }
 
     scene->game_over = false;
@@ -971,6 +1110,7 @@ void init_scene(Scene* scene)
     scene->game_over = false;
     scene->game_won = false;
     scene->drone_count = MAX_DRONES;
+    scene->inner_door_count = 0;
     init_drone(&scene->drones[0], 0);
     init_drone(&scene->drones[1], 1);
 
@@ -980,6 +1120,7 @@ void init_scene(Scene* scene)
     scene->floor_texture = load_texture("assets/textures/floor.bmp");
     scene->wall_texture = load_texture("assets/textures/wall.bmp");
     scene->door_texture = load_texture("assets/textures/door.bmp");
+    scene->ceiling_texture = load_texture("assets/textures/roof.bmp");
     if (!load_model(&scene->door_frame_model, "assets/models/door_frame.obj")) {
     printf("Failed to load door_frame.obj\n");
     }
@@ -991,6 +1132,11 @@ void init_scene(Scene* scene)
 
     if (!load_model(&scene->generator_model, "assets/models/generator.obj")) {
     printf("Failed to load generator.obj\n");
+    }
+    //scene->inner_door_texture = load_texture("assets/textures/inner_door.bmp");
+
+    if (!load_model(&scene->inner_door_model, "assets/models/inner_door.obj")) {
+    printf("Failed to load inner_door.obj\n");
     }
 
   /* =========================
@@ -1135,6 +1281,16 @@ add_generator(scene, -10.0f,  17.0f);
 add_collider(scene, -15.0f, -11.0f, 1.0f, 1.0f);
 add_collider(scene,  15.5f,  -3.5f, 1.0f, 1.0f);
 add_collider(scene, -10.0f,  17.0f, 1.0f, 1.0f);
+
+/* Eddig tartanak a falak */
+scene->wall_count = scene->collider_count;
+
+/* Belső ajtók */
+add_inner_door(scene, -12.0f, 3.0f, 90.0f);
+add_inner_door(scene, 12.0f, 3.0f, 90.0f);
+add_inner_door(scene, -10.0f, 15.0f, 90.0f);
+add_inner_door(scene, 10.0f, 15.0f, 90.0f);
+
 }
 
 void update_scene(Scene* scene, double delta_time, float player_x, float player_z)
@@ -1178,13 +1334,50 @@ void update_scene(Scene* scene, double delta_time, float player_x, float player_
         printf("MISSION COMPLETE: Player escaped!\n");
         return;
     }
+
+    for (i = 0; i < scene->inner_door_count; ++i) {
+    InnerDoor* door = &scene->inner_doors[i];
+
+    if (door->open) {
+        if (door->open_offset < 1.5f) {
+            door->open_offset += (float)(delta_time * 1.5f);
+        }
+
+        if (door->open_offset > 1.5f) {
+            door->open_offset = 1.5f;
+        }
+
+        door->auto_close_timer += (float)delta_time;
+
+        if (door->auto_close_timer >= 5.0f) {
+            door->open = false;
+            door->auto_close_timer = 0.0f;
+
+            if (door->collider_index >= 0) {
+                scene->colliders[door->collider_index].active = true;
+            }
+        }
+    }
+    else {
+        if (door->open_offset > 0.0f) {
+            door->open_offset -= (float)(delta_time * 1.5f);
+        }
+
+        if (door->open_offset < 0.0f) {
+            door->open_offset = 0.0f;
+        }
+    }
+    }
+
 }
 
 void render_scene(const Scene* scene)
 {
     int i;
 
+    draw_ceiling(scene->floor_size, scene->wall_texture);
     draw_floor(scene->floor_size, scene->floor_texture);
+    draw_ceiling(scene->floor_size, scene->ceiling_texture);
 
     /* 0-3: kulso falak, 4-6: belso falak */
     for (i = 0; i < scene->wall_count; ++i) {
@@ -1198,6 +1391,10 @@ void render_scene(const Scene* scene)
     }
 
     draw_exit_door(scene);
+
+    for (i = 0; i < scene->inner_door_count; ++i) {
+    draw_inner_door(scene, &scene->inner_doors[i]);
+    }
 
     for (i = 0; i < scene->generator_count; ++i) {
     draw_generator(scene, &scene->generators[i]);
@@ -1235,6 +1432,11 @@ void destroy_scene(Scene* scene)
         scene->door_texture = 0;
     }
 
+    if (scene->ceiling_texture != 0) {
+    glDeleteTextures(1, &scene->ceiling_texture);
+    scene->ceiling_texture = 0;
+    }
+
     destroy_model(&scene->door_frame_model);
     destroy_model(&scene->door_panel_model);
     if (scene->generator_texture != 0) {
@@ -1243,4 +1445,11 @@ void destroy_scene(Scene* scene)
     }
 
     destroy_model(&scene->generator_model);
+
+    if (scene->inner_door_texture != 0) {
+    glDeleteTextures(1, &scene->inner_door_texture);
+    scene->inner_door_texture = 0;
+    }
+
+    destroy_model(&scene->inner_door_model);
 }
