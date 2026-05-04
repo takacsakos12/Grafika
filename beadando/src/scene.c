@@ -29,6 +29,40 @@ static void init_particles(Scene* scene)
     }
 }
 
+static void draw_static_model(
+    const Model* model,
+    GLuint texture,
+    float x,
+    float y,
+    float z,
+    float rotation_y,
+    float scale
+)
+{
+    glDisable(GL_CULL_FACE);
+
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+    glColor3f(1.0f, 1.0f, 1.0f);
+
+    glPushMatrix();
+
+    glTranslatef(x, y, z);
+    glRotatef(rotation_y, 0.0f, 1.0f, 0.0f);
+    glScalef(scale, scale, scale);
+
+    render_model(model);
+
+    glPopMatrix();
+
+    glDisable(GL_TEXTURE_2D);
+    glEnable(GL_CULL_FACE);
+}
+
+
+
 
 static void emit_spark(Scene* scene, float x, float y, float z)
 {
@@ -214,6 +248,29 @@ static void draw_drone_path(int index)
     glEnd();
 
     glEnable(GL_LIGHTING);
+}
+
+static void add_crate(
+    Scene* scene,
+    float x,
+    float y,
+    float z,
+    float rotation_y,
+    float scale
+)
+{
+    if (scene->crate_count >= MAX_CRATES) {
+        return;
+    }
+
+    scene->crates[scene->crate_count].x = x;
+    scene->crates[scene->crate_count].y = y;
+    scene->crates[scene->crate_count].z = z;
+    scene->crates[scene->crate_count].rotation_y = rotation_y;
+    scene->crates[scene->crate_count].scale = scale;
+    scene->crates[scene->crate_count].collider_index = -1;
+
+    scene->crate_count++;
 }
 
 static void add_generator(Scene* scene, float x, float z)
@@ -442,7 +499,7 @@ static void draw_ceiling(float size, GLuint texture)
 
 static void draw_exit_door(const Scene* scene)
 {
-    float door_x = -1.0f;
+    float door_x = 3.0f;
     float door_y = 0.0f;
     float door_z = 19.6f;
     float door_scale = 3.0f;
@@ -556,11 +613,11 @@ static void add_inner_door(
     scene->inner_doors[scene->inner_door_count].collider_index = scene->collider_count;
 
     if ((int)rotation_y == 90 || (int)rotation_y == 270) {
-    add_collider(scene, x, z, 0.4f, 1.6f);
+    add_collider(scene, x, z, 0.4f, 1.5f);
     }
     else {
-    add_collider(scene, x, z, 1.6f, 0.4f);
-    }
+    add_collider(scene, x, z, 1.5f, 0.4f);
+}
 
     scene->inner_door_count++;
 }
@@ -571,15 +628,20 @@ static void draw_inner_door(const Scene* scene, const InnerDoor* door)
     float door_scale = 1.5f;
 
     /*
-        A modell tényleges szélessége játékegységben.
-        Ha nyitáskor a zsanér széle elmászik, ezt kell állítani.
+        Az OBJ ajtó szélessége lokális Z irányban van.
+        Raw Z méret kb. 0.99, scale 1.5 mellett kb. 1.48.
+        Ezért a fél szélesség kb. 0.74.
     */
-    float door_visual_width = 1.6f;
+    float hinge_offset = 0.74f;
+
+    /*
+        Az OBJ nincs teljesen középen a saját Z tengelyén.
+        Ez korrigálja, hogy ne egyik oldalon legyen nagyobb rés.
+    */
+    float model_center_fix_z = -0.10f;
 
     float base_rotation = door->rotation_y + 90.0f;
     float angle = door->open_offset * door->open_direction;
-
-    float hinge_offset = door_visual_width / 2.0f;
 
     glDisable(GL_CULL_FACE);
 
@@ -592,31 +654,35 @@ static void draw_inner_door(const Scene* scene, const InnerDoor* door)
     glPushMatrix();
 
     /*
-        1. Ajtó középpontja a pályán.
+        1. Ajtó közepe a pályán.
     */
     glTranslatef(door->x, door_y, door->z);
 
     /*
-        2. Alap forgatás, hogy a modell a falnyílás irányába álljon.
+        2. Alap irány.
     */
     glRotatef(base_rotation, 0.0f, 1.0f, 0.0f);
 
     /*
-        3. Átmegyünk az ajtó egyik szélére.
-           hinge_side = -1 vagy 1.
+        3. Zsanér az ajtó egyik oldalán.
+        Fontos: itt Z irányban megyünk ki az oldalára, nem X irányban.
     */
-    glTranslatef(door->hinge_side * hinge_offset, 0.0f, 0.0f);
+    glTranslatef(0.0f, 0.0f, door->hinge_side * hinge_offset);
 
     /*
-        4. Itt forgatunk, tehát az ajtó széle lesz a zsanér.
+        4. Forgatás a zsanér körül.
     */
     glRotatef(angle, 0.0f, 1.0f, 0.0f);
 
     /*
-        5. Visszamegyünk a modell közepéhez.
+        5. Vissza az ajtó közepére.
     */
-    glTranslatef(-door->hinge_side * hinge_offset, 0.0f, 0.0f);
+    glTranslatef(0.0f, 0.0f, -door->hinge_side * hinge_offset);
 
+    /*
+        6. OBJ középre igazítás + méretezés.
+    */
+    glTranslatef(0.0f, 0.0f, model_center_fix_z);
     glScalef(door_scale, door_scale, door_scale);
 
     render_model(&scene->inner_door_model);
@@ -1135,6 +1201,7 @@ void init_scene(Scene* scene)
 
     scene->collider_count = 0;
     scene->wall_count = 0;
+    scene->crate_count = 0;
 
     scene->exit_door_open = false;
     scene->exit_door_collider_index = -1;
@@ -1176,186 +1243,362 @@ void init_scene(Scene* scene)
     printf("Failed to load inner_door.obj\n");
     }
 
- /* =========================
+    /* Sci-fi crate
+   https://sketchfab.com/3d-models/sci-fi-crate-df5fd0e719cb409698955384dab4a533
+    */
+    scene->crate_texture = load_texture("assets/textures/crate.bmp");
+
+    if (!load_model(&scene->crate_model, "assets/models/crate.obj")) {
+    printf("Failed to load crate.obj\n");
+    }
+
+    /* Sci-fi computer desk / console
+   https://sketchfab.com/3d-models/sci-fi-computer-desk-console-28c67457f2ef4973a0bbc8b667bb183f
+    */
+    scene->console_texture = load_texture("assets/textures/console.bmp");
+
+    if (!load_model(&scene->console_model, "assets/models/console.obj")) {
+    printf("Failed to load console.obj\n");
+    }
+
+    /* Sci-fi desk and chair
+   https://sketchfab.com/3d-models/sci-fi-desk-and-chair-677c70fe6e614791ba7ebd96d7e3101c
+    */
+    scene->desk_chair_texture = load_texture("assets/textures/desk_chair.bmp");
+
+    if (!load_model(&scene->desk_chair_model, "assets/models/desk_chair.obj")) {
+    printf("Failed to load desk_chair.obj\n");
+    }
+
+    /* Sci-fi plant capsule
+   https://sketchfab.com/3d-models/sci-fi-plant-capsule-bd2d05db1bf24143ac2030c57e1eb05e
+    */
+    scene->plant_capsule_texture = load_texture("assets/textures/plant_capsule.bmp");
+
+    if (!load_model(&scene->plant_capsule_model, "assets/models/plant_capsule.obj")) {
+    printf("Failed to load plant_capsule.obj\n");
+    }
+
+    /* =========================
    FALAK A VEGLEGES GEOGEBRA RAJZ ALAPJAN
    JAVITVA:
-   - inner_door atjarok szukitve kb. 1.6 szelesre
+   - inner_door atjarok egységesen kb. 1.5 szelesek
    - x = jatek x
    - GeoGebra y = jatek z
    ========================= */
 
-/* Kulso falak */
-add_vwall(scene, -20.0f, -20.0f, 20.0f);
-add_hwall(scene, -20.0f, 20.0f, -20.0f);
-add_vwall(scene, 20.0f, -20.0f, 20.0f);
+    /* Kulso falak */
+    add_vwall(scene, -20.0f, -20.0f, 20.0f);
+    add_hwall(scene, -20.0f, 20.0f, -20.0f);
+    add_vwall(scene, 20.0f, -20.0f, 20.0f);
 
-/* Felso fal kijarati nyilassal */
-add_hwall(scene, 1.0f, 20.0f, 20.0f);
-add_hwall(scene, -20.0f, -2.0f, 20.0f);
+    /* Felso fal kijarati nyilassal */
+    add_hwall(scene, 1.0f, 20.0f, 20.0f);
+    add_hwall(scene, -20.0f, -2.0f, 20.0f);
 
 /* Bal oldal / bal felso */
-add_hwall(scene, -20.0f, -10.0f, 0.0f);
-add_hwall(scene, -20.0f, -14.5f, 16.0f);
-add_vwall(scene, -13.0f, 16.0f, 20.0f);
-add_hwall(scene, -20.0f, -19.0f, 10.0f);
-add_hwall(scene, -17.5f, -17.0f, 10.0f);
-add_vwall(scene, -17.0f, 10.0f, 11.0f);
-add_hwall(scene, -17.0f, -14.0f, 11.0f);
-add_hwall(scene, -14.0f, -13.0f, 11.0f);
-add_vwall(scene, -13.0f, 11.0f, 13.0f);
-add_vwall(scene, -13.0f, 14.0f, 16.0f);
+    add_hwall(scene, -20.0f, -10.0f, 0.0f);
+    add_hwall(scene, -20.0f, -14.5f, 16.0f);
+    add_vwall(scene, -13.0f, 16.0f, 20.0f);
+    add_hwall(scene, -20.0f, -19.0f, 10.0f);
+    add_hwall(scene, -17.5f, -17.0f, 10.0f);
+    add_vwall(scene, -17.0f, 10.0f, 11.0f);
+    add_hwall(scene, -17.0f, -14.0f, 11.0f);
+    add_hwall(scene, -14.0f, -13.0f, 11.0f);
+    add_vwall(scene, -13.0f, 11.0f, 13.0f);
+    add_vwall(scene, -13.0f, 14.0f, 16.0f);
 
-/* Felso kozep / kijarat kornyeke */
-add_hwall(scene, 1.0f, 5.0f, 17.0f);
-add_vwall(scene, 5.0f, 11.0f, 17.0f);
-add_vwall(scene, -2.0f, 18.0f, 20.0f);
-add_hwall(scene, -5.0f, -2.0f, 15.0f);
-add_vwall(scene, -5.0f, 13.0f, 15.0f);
-add_vwall(scene, -2.0f, 15.0f, 18.0f);
+    /* Felso kozep / kijarat kornyeke */
+    add_hwall(scene, 1.0f, 5.0f, 17.0f);
+    add_vwall(scene, 5.0f, 10.75f, 17.0f);
+    add_vwall(scene, -2.0f, 18.0f, 20.0f);
+    add_hwall(scene, -5.0f, -2.0f, 15.0f);
+    add_vwall(scene, -5.0f, 13.0f, 15.0f);
+    add_vwall(scene, -2.0f, 15.0f, 18.0f);
 
-/* JAVITVA: x = -5 ajto, nyilas kb. z = 9.2 .. 10.8 */
-add_vwall(scene, -5.0f, 10.8f, 13.0f);
+    /* x = -5 ajto: kozep z = 10.0, nyilas z = 9.25 .. 10.75 */
+    add_vwall(scene, -5.0f, 10.75f, 13.0f);
 
-add_hwall(scene, -11.5f, -5.0f, 12.0f);
-add_vwall(scene, -11.5f, 12.0f, 16.0f);
-add_vwall(scene, -11.5f, 16.0f, 18.5f);
-add_hwall(scene, -11.5f, -9.5f, 18.5f);
-add_vwall(scene, -9.5f, 17.0f, 18.5f);
-add_vwall(scene, -8.0f, 15.5f, 20.0f);
-add_hwall(scene, -10.0f, -8.0f, 15.5f);
-add_vwall(scene, -10.0f, 13.5f, 15.5f);
-add_hwall(scene, -10.0f, -8.0f, 13.5f);
+    add_hwall(scene, -11.5f, -5.0f, 12.0f);
+    add_vwall(scene, -11.5f, 12.0f, 16.0f);
+    add_vwall(scene, -11.5f, 16.0f, 18.5f);
+    add_hwall(scene, -11.5f, -9.5f, 18.5f);
+    add_vwall(scene, -9.5f, 17.0f, 18.5f);
+    add_vwall(scene, -8.0f, 15.5f, 20.0f);
+    add_hwall(scene, -10.0f, -8.0f, 15.5f);
+    add_vwall(scene, -10.0f, 13.5f, 15.5f);
+    add_hwall(scene, -10.0f, -8.0f, 13.5f);
 
 /* Jobb felso */
-add_vwall(scene, 11.0f, 10.0f, 20.0f);
-add_hwall(scene, 11.0f, 18.5f, 10.0f);
-add_vwall(scene, 18.5f, 10.0f, 12.0f);
-add_hwall(scene, 13.0f, 18.5f, 12.0f);
-add_hwall(scene, 13.0f, 20.0f, 15.0f);
-add_vwall(scene, 13.0f, 15.0f, 18.0f);
+    add_vwall(scene, 11.0f, 10.0f, 20.0f);
+    add_hwall(scene, 11.0f, 18.5f, 10.0f);
+    add_vwall(scene, 18.5f, 10.0f, 12.0f);
+    add_hwall(scene, 13.0f, 18.5f, 12.0f);
+    add_hwall(scene, 13.0f, 20.0f, 15.0f);
+    add_vwall(scene, 13.0f, 15.0f, 18.0f);
 
-/* Also kozep / start */
-add_vwall(scene, -2.0f, -20.0f, -12.0f);
-add_vwall(scene, 2.0f, -20.0f, -10.0f);
-add_hwall(scene, -6.0f, -2.0f, -10.0f);
-add_hwall(scene, 2.0f, 4.0f, -10.0f);
-add_vwall(scene, -6.0f, -10.0f, -9.0f);
-add_hwall(scene, -7.0f, -6.0f, -9.0f);
-add_vwall(scene, -7.0f, -20.0f, -9.0f);
+    /* Also kozep / start */
+    add_vwall(scene, -2.0f, -20.0f, -12.0f);
+    add_vwall(scene, 2.0f, -20.0f, -10.0f);
+    add_hwall(scene, -6.0f, -2.0f, -10.0f);
+    add_hwall(scene, 2.0f, 4.0f, -10.0f);
+    add_vwall(scene, -6.0f, -10.0f, -9.0f);
+    add_hwall(scene, -7.0f, -6.0f, -9.0f);
+    add_vwall(scene, -7.0f, -20.0f, -9.0f);
 
-/* Bal also */
-add_hwall(scene, -10.0f, -7.0f, -9.0f);
-add_vwall(scene, -10.0f, -9.0f, -6.0f);
-add_hwall(scene, -14.0f, -10.0f, -6.0f);
+    /* Bal also */
+    add_hwall(scene, -10.0f, -7.0f, -9.0f);
+    add_vwall(scene, -10.0f, -9.0f, -6.0f);
+    add_hwall(scene, -14.0f, -10.0f, -6.0f);
 
-/* JAVITVA: z = -6 ajto, nyilas kb. x = -16.3 .. -14.7 */
-add_hwall(scene, -20.0f, -16.3f, -6.0f);
-add_hwall(scene, -14.7f, -10.0f, -6.0f);
+    /* z = -6 ajto: kozep x = -15.5, nyilas x = -16.25 .. -14.75 */
+    add_hwall(scene, -20.0f, -16.25f, -6.0f);
+    add_hwall(scene, -14.75f, -10.0f, -6.0f);
 
-/* JAVITVA: x = -10 ajto, nyilas kb. z = 0.7 .. 2.3 */
-add_vwall(scene, -10.0f, -2.0f, 0.7f);
+    /* x = -10 ajto: kozep z = 1.5, nyilas z = 0.75 .. 2.25 */
+    add_vwall(scene, -10.0f, -2.0f, 0.75f);
 
-add_hwall(scene, -20.0f, -16.0f, -14.0f);
+    add_hwall(scene, -20.0f, -16.0f, -14.0f);
 
-/* JAVITVA: x = -16 ajto, nyilas kb. z = -13.8 .. -12.2 */
-add_vwall(scene, -16.0f, -16.0f, -13.8f);
+    /* x = -16 ajto: kozep z = -13.0, nyilas z = -13.75 .. -12.25 */
+    add_vwall(scene, -16.0f, -16.0f, -13.75f);
 
-add_hwall(scene, -16.0f, -10.0f, -16.0f);
-add_vwall(scene, -10.0f, -16.0f, -14.0f);
+    add_hwall(scene, -16.0f, -10.0f, -16.0f);
+    add_vwall(scene, -10.0f, -16.0f, -14.0f);
 
-add_hwall(scene, -20.0f, -14.0f, -8.0f);
-add_vwall(scene, -14.0f, -10.0f, -8.0f);
-add_hwall(scene, -16.0f, -14.0f, -10.0f);
+    add_hwall(scene, -20.0f, -14.0f, -8.0f);
+    add_vwall(scene, -14.0f, -10.0f, -8.0f);
+    add_hwall(scene, -16.0f, -14.0f, -10.0f);
 
-/* JAVITVA: x = -16 ajto masik oldala */
-add_vwall(scene, -16.0f, -12.2f, -10.0f);
+    /* x = -16 ajto masik oldala */
+    add_vwall(scene, -16.0f, -12.25f, -10.0f);
 
-add_hwall(scene, -16.0f, -14.0f, -12.0f);
+    add_hwall(scene, -16.0f, -14.0f, -12.0f);
 
-/* Bal kozep / szikrazo oldal */
+    /* Bal kozep / szikrazo oldal */
 
-/* JAVITVA: x = -10 ajto masik oldala */
-add_vwall(scene, -10.0f, 2.3f, 9.0f);
+    /* x = -10 ajto masik oldala */
+    add_vwall(scene, -10.0f, 2.25f, 9.0f);
 
-add_hwall(scene, -10.0f, -6.0f, 9.0f);
-add_hwall(scene, -6.0f, -2.5f, 9.0f);
-add_vwall(scene, -2.5f, 9.0f, 11.0f);
-add_hwall(scene, -2.5f, 1.0f, 11.0f);
-add_vwall(scene, 1.0f, 9.0f, 11.0f);
-add_hwall(scene, 1.0f, 2.0f, 9.0f);
+    add_hwall(scene, -10.0f, -6.0f, 9.0f);
+    add_hwall(scene, -6.0f, -2.5f, 9.0f);
+    add_vwall(scene, -2.5f, 9.0f, 11.0f);
+    add_hwall(scene, -2.5f, 1.0f, 11.0f);
+    add_vwall(scene, 1.0f, 9.0f, 11.0f);
+    add_hwall(scene, 1.0f, 2.0f, 9.0f);
 
-add_vwall(scene, -14.0f, 8.0f, 11.0f);
-add_hwall(scene, -15.0f, -14.0f, 8.0f);
-add_vwall(scene, -15.0f, 4.0f, 8.0f);
-add_hwall(scene, -15.0f, -13.0f, 4.0f);
-add_vwall(scene, -13.0f, 2.0f, 4.0f);
-add_vwall(scene, -16.0f, 0.2f, 2.0f);
-add_hwall(scene, -16.0f, -14.5f, 2.0f);
-add_hwall(scene, -20.0f, -18.0f, 5.0f);
-add_vwall(scene, -18.0f, 5.0f, 6.0f);
-add_hwall(scene, -18.0f, -17.0f, 6.0f);
-add_vwall(scene, -17.0f, 5.0f, 6.0f);
-add_hwall(scene, -17.0f, -15.0f, 5.0f);
+    add_vwall(scene, -14.0f, 8.0f, 11.0f);
+    add_hwall(scene, -15.0f, -14.0f, 8.0f);
+    add_vwall(scene, -15.0f, 4.0f, 8.0f);
+    add_hwall(scene, -15.0f, -13.0f, 4.0f);
+    add_vwall(scene, -13.0f, 2.0f, 4.0f);
+    add_vwall(scene, -16.0f, 0.2f, 2.0f);
+    add_hwall(scene, -16.0f, -14.5f, 2.0f);
+    add_hwall(scene, -20.0f, -18.0f, 5.0f);
+    add_vwall(scene, -18.0f, 5.0f, 6.0f);
+    add_hwall(scene, -18.0f, -17.0f, 6.0f);
+    add_vwall(scene, -17.0f, 5.0f, 6.0f);
+    add_hwall(scene, -17.0f, -15.0f, 5.0f);
 
-/* Kozepso nagy terem */
+    /* Kozepso nagy terem */
 
-/* JAVITVA: x = 5 ajto also oldala, nyilas kb. z = 9.2 .. 10.8 */
-add_vwall(scene, 5.0f, -5.0f, 9.2f);
+    /* x = 5 ajto: kozep z = 10.0, nyilas z = 9.25 .. 10.75 */
+    add_vwall(scene, 5.0f, -5.0f, 9.25f);
 
-add_vwall(scene, -6.0f, -5.0f, 9.0f);
-add_hwall(scene, -4.0f, 5.0f, -5.0f);
+    add_vwall(scene, -6.0f, -5.0f, 9.0f);
+    add_hwall(scene, -4.0f, 5.0f, -5.0f);
 
-/* Jobb kozep / szikrazo oldal */
-add_vwall(scene, 10.0f, 4.0f, 6.0f);
-add_hwall(scene, 10.0f, 14.0f, 4.0f);
-add_vwall(scene, 10.0f, 6.0f, 7.0f);
-add_hwall(scene, 8.0f, 10.0f, 7.0f);
-add_vwall(scene, 8.0f, 7.0f, 9.0f);
-add_hwall(scene, 5.0f, 8.0f, 9.0f);
+    /* Jobb kozep / szikrazo oldal */
+    add_vwall(scene, 10.0f, 4.0f, 6.0f);
+    add_hwall(scene, 10.0f, 14.0f, 4.0f);
+    add_vwall(scene, 10.0f, 6.0f, 7.0f);
+    add_hwall(scene, 8.0f, 10.0f, 7.0f);
+    add_vwall(scene, 8.0f, 7.0f, 9.0f);
+    add_hwall(scene, 5.0f, 8.0f, 9.0f);
 
-/* JAVITVA: x = 14 ajto, nyilas kb. z = -1.3 .. 0.3 */
-add_vwall(scene, 14.0f, 0.3f, 4.0f);
-add_vwall(scene, 14.0f, -5.0f, -1.3f);
+    /* x = 14 ajto: kozep z = -0.5, nyilas z = -1.25 .. 0.25 */
+    add_vwall(scene, 14.0f, 0.25f, 4.0f);
+    add_vwall(scene, 14.0f, -5.0f, -1.25f);
 
-add_hwall(scene, 11.0f, 14.0f, -5.0f);
+    add_hwall(scene, 11.0f, 14.0f, -5.0f);
 
-/* Jobb also / jobb oldal */
-add_vwall(scene, 7.0f, -20.0f, -10.0f);
-add_hwall(scene, 7.0f, 14.0f, -10.0f);
-add_hwall(scene, 17.0f, 20.0f, -10.0f);
-add_vwall(scene, 14.0f, -18.5f, -10.0f);
-add_hwall(scene, 18.0f, 20.0f, -8.0f);
+    /* Jobb also / jobb oldal */
+    add_vwall(scene, 7.0f, -20.0f, -10.0f);
+    add_hwall(scene, 7.0f, 14.0f, -10.0f);
+    add_hwall(scene, 17.0f, 20.0f, -10.0f);
+    add_vwall(scene, 14.0f, -18.5f, -10.0f);
+    add_hwall(scene, 18.0f, 20.0f, -8.0f);
 
-/* JAVITVA: x = 5 ajto felso oldala */
-add_vwall(scene, 5.0f, 10.8f, 17.0f);
+    /* x = 5 ajto felso oldala */
+    add_vwall(scene, 5.0f, 10.75f, 17.0f);
 
-/* Eddig tartanak a falak */
-scene->wall_count = scene->collider_count;
+    /* Eddig tartanak a falak */
+    scene->wall_count = scene->collider_count;
    
-/* Kijarati ajto collider */
-scene->exit_door_collider_index = scene->collider_count;
-add_collider(scene, -1.0f, 19.7f, 3.0f, 0.4f);
+    /* Kijarati ajto collider */
+    scene->exit_door_collider_index = scene->collider_count;
+    add_collider(scene, -1.0f, 19.7f, 3.0f, 0.4f);
 
-/* Függőleges falnyílások */
-add_inner_door(scene, -5.0f,   10.0f, 90.0f, 1.0f,  -1.0f);
-add_inner_door(scene, -16.0f, -12.85f, 90.0f, 1.0f,  -1.0f);
-add_inner_door(scene, -10.0f,   1.5f, 90.0f, 1.0f,  -1.0f);
-add_inner_door(scene,  5.0f,   10.0f, 90.0f,  -1.0f, 1.0f);
-add_inner_door(scene, 14.0f,   -0.5f, 90.0f,  -1.0f, 1.0f);
-add_inner_door(scene, -15.35f, -6.0f, 0.0f, 1.0f,  -1.0f);
+    /* Függőleges falnyílások */
+    add_inner_door(scene, -5.0f,   10.0f, 90.0f, 1.0f,  -1.0f);
+    add_inner_door(scene, -16.0f, -12.85f, 90.0f, 1.0f,  -1.0f);
+    add_inner_door(scene, -10.0f,   1.5f, 90.0f, 1.0f,  -1.0f);
+    add_inner_door(scene,  5.0f,   10.0f, 90.0f,  -1.0f, 1.0f);
+    add_inner_door(scene, 14.0f,   -0.5f, 90.0f,  -1.0f, 1.0f);
+    //add_inner_door(scene, -15.35f, -6.0f, 0.0f, 1.0f,  -1.0f);
 
-/* Vízszintes falnyílás */
-add_inner_door(scene, -15.5f,  -6.0f, 0.0f, 1.0f,  -1.0f);
+    /* Vízszintes falnyílás */
+    add_inner_door(scene, -15.5f,  -6.0f, 0.0f, 1.0f,  -1.0f);
 
-/* Generatorok */
-add_generator(scene, -15.0f, -11.0f);
-add_generator(scene,  15.5f,  -3.5f);
-add_generator(scene, -10.0f,  17.0f);
+    /* Generatorok */
+    add_generator(scene, -15.0f, -11.0f);
+    add_generator(scene,  15.5f,  -3.5f);
+    add_generator(scene, -10.0f,  17.0f);
 
-/* Generator colliderjei */
-add_collider(scene, -15.0f, -11.0f, 1.0f, 1.0f);
-add_collider(scene,  15.5f,  -3.5f, 1.0f, 1.0f);
-add_collider(scene, -10.0f,  17.0f, 1.0f, 1.0f);
+    /* Generator colliderjei */
+    add_collider(scene, -15.0f, -11.0f, 1.0f, 1.0f);
+    add_collider(scene,  15.5f,  -3.5f, 1.0f, 1.0f);
+    add_collider(scene, -10.0f,  17.0f, 1.0f, 1.0f);
+
+   /* =========================
+   CRATE LEOSZTAS - UJ VERZIO
+   scale mindig 0.01f
+   csak az also crate kap collidert
+   ========================= */
+
+/* =========================
+   1. Bal also raktar
+   ========================= */
+
+/* dupla rakas */
+add_crate(scene, -17.5f, 0.7f, -15.5f, 0.0f, 0.01f);
+add_collider(scene, -17.5f, -15.5f, 1.0f, 1.0f);
+add_crate(scene, -17.5f, 1.5f, -15.5f, 0.0f, 0.01f);
+
+/* szimpla */
+add_crate(scene, -15.8f, 0.7f, -15.2f, 0.0f, 0.01f);
+add_collider(scene, -15.8f, -15.2f, 1.0f, 1.0f);
+
+/* dupla rakas */
+add_crate(scene, -18.2f, 0.7f, -12.8f, 90.0f, 0.01f);
+add_collider(scene, -18.2f, -12.8f, 1.0f, 1.0f);
+add_crate(scene, -18.2f, 1.5f, -12.8f, 90.0f, 0.01f);
+
+/* szimpla */
+add_crate(scene, -14.8f, 0.7f, -11.8f, 90.0f, 0.01f);
+add_collider(scene, -14.8f, -11.8f, 1.0f, 1.0f);
+
+/* szimpla */
+add_crate(scene, -12.8f, 0.7f, -8.2f, 0.0f, 0.01f);
+add_collider(scene, -12.8f, -8.2f, 1.0f, 1.0f);
+
+
+/* =========================
+   2. Bal kozep / szikrazo resz
+   ========================= */
+
+/* szimpla */
+add_crate(scene, -17.2f, 0.7f, 4.8f, 0.0f, 0.01f);
+add_collider(scene, -17.2f, 4.8f, 1.0f, 1.0f);
+
+/* dupla rakas */
+add_crate(scene, -15.0f, 0.7f, 5.5f, 90.0f, 0.01f);
+add_collider(scene, -15.0f, 5.5f, 1.0f, 1.0f);
+add_crate(scene, -15.0f, 1.5f, 5.5f, 90.0f, 0.01f);
+
+/* szimpla */
+add_crate(scene, -13.2f, 0.7f, 7.5f, 0.0f, 0.01f);
+add_collider(scene, -13.2f, 7.5f, 1.0f, 1.0f);
+
+
+/* =========================
+   3. Bal felso / labor kornyeke
+   ========================= */
+
+/* szimpla */
+add_crate(scene, -17.5f, 0.7f, 14.8f, 0.0f, 0.01f);
+add_collider(scene, -17.5f, 14.8f, 1.0f, 1.0f);
+
+/* dupla rakas */
+add_crate(scene, -15.2f, 0.7f, 16.2f, 90.0f, 0.01f);
+add_collider(scene, -15.2f, 16.2f, 1.0f, 1.0f);
+add_crate(scene, -15.2f, 1.5f, 16.2f, 90.0f, 0.01f);
+
+/* szimpla */
+add_crate(scene, -9.5f, 0.7f, 15.0f, 0.0f, 0.01f);
+add_collider(scene, -9.5f, 15.0f, 1.0f, 1.0f);
+
+/* szimpla */
+add_crate(scene, -4.0f, 0.7f, 16.5f, 90.0f, 0.01f);
+add_collider(scene, -4.0f, 16.5f, 1.0f, 1.0f);
+
+
+/* =========================
+   4. Kozepso nagy terem
+   ========================= */
+
+/* szimpla */
+add_crate(scene, -1.5f, 0.7f, -3.5f, 0.0f, 0.01f);
+add_collider(scene, -1.5f, -3.5f, 1.0f, 1.0f);
+
+/* dupla rakas */
+add_crate(scene, 1.5f, 0.7f, -2.5f, 90.0f, 0.01f);
+add_collider(scene, 1.5f, -2.5f, 1.0f, 1.0f);
+add_crate(scene, 1.5f, 1.5f, -2.5f, 90.0f, 0.01f);
+
+/* szimpla */
+add_crate(scene, 3.8f, 0.7f, 6.5f, 0.0f, 0.01f);
+add_collider(scene, 3.8f, 6.5f, 1.0f, 1.0f);
+
+
+/* =========================
+   5. Jobb also raktar
+   ========================= */
+
+/* szimpla */
+add_crate(scene, 9.5f, 0.7f, -15.2f, 0.0f, 0.01f);
+add_collider(scene, 9.5f, -15.2f, 1.0f, 1.0f);
+
+/* dupla rakas */
+add_crate(scene, 12.0f, 0.7f, -14.0f, 90.0f, 0.01f);
+add_collider(scene, 12.0f, -14.0f, 1.0f, 1.0f);
+add_crate(scene, 12.0f, 1.5f, -14.0f, 90.0f, 0.01f);
+
+/* szimpla */
+add_crate(scene, 15.5f, 0.7f, -11.5f, 0.0f, 0.01f);
+add_collider(scene, 15.5f, -11.5f, 1.0f, 1.0f);
+
+
+/* =========================
+   6. Jobb kozep / gepterem
+   ========================= */
+
+/* szimpla */
+add_crate(scene, 12.2f, 0.7f, 2.5f, 0.0f, 0.01f);
+add_collider(scene, 12.2f, 2.5f, 1.0f, 1.0f);
+
+/* dupla rakas */
+add_crate(scene, 15.0f, 0.7f, 4.0f, 90.0f, 0.01f);
+add_collider(scene, 15.0f, 4.0f, 1.0f, 1.0f);
+add_crate(scene, 15.0f, 1.5f, 4.0f, 90.0f, 0.01f);
+
+/* szimpla */
+add_crate(scene, 13.5f, 0.7f, 7.5f, 0.0f, 0.01f);
+add_collider(scene, 13.5f, 7.5f, 1.0f, 1.0f);
+
+
+/* =========================
+   7. Jobb felso
+   ========================= */
+
+/* szimpla */
+add_crate(scene, 15.5f, 0.7f, 13.0f, 0.0f, 0.01f);
+add_collider(scene, 15.5f, 13.0f, 1.0f, 1.0f);
+
+/* dupla rakas */
+add_crate(scene, 13.0f, 0.7f, 16.0f, 90.0f, 0.01f);
+add_collider(scene, 13.0f, 16.0f, 1.0f, 1.0f);
+add_crate(scene, 13.0f, 1.5f, 16.0f, 90.0f, 0.01f);
 }
 
 void update_scene(Scene* scene, double delta_time, float player_x, float player_z)
@@ -1486,6 +1729,18 @@ void render_scene(const Scene* scene)
     draw_drone(&scene->drones[i]);
     }
     draw_particles(scene);
+
+   for (i = 0; i < scene->crate_count; ++i) {
+    draw_static_model(
+        &scene->crate_model,
+        scene->crate_texture,
+        scene->crates[i].x,
+        scene->crates[i].y,
+        scene->crates[i].z,
+        scene->crates[i].rotation_y,
+        scene->crates[i].scale
+    );
+    }
 }
 
 void destroy_scene(Scene* scene)
@@ -1523,6 +1778,34 @@ void destroy_scene(Scene* scene)
     glDeleteTextures(1, &scene->inner_door_texture);
     scene->inner_door_texture = 0;
     }
+
+    if (scene->crate_texture != 0) {
+    glDeleteTextures(1, &scene->crate_texture);
+    scene->crate_texture = 0;
+}
+
+    destroy_model(&scene->crate_model);
+
+    if (scene->console_texture != 0) {
+    glDeleteTextures(1, &scene->console_texture);
+    scene->console_texture = 0;
+    }
+
+    destroy_model(&scene->console_model);
+
+    if (scene->desk_chair_texture != 0) {
+    glDeleteTextures(1, &scene->desk_chair_texture);
+    scene->desk_chair_texture = 0;
+    }
+
+    destroy_model(&scene->desk_chair_model);
+
+    if (scene->plant_capsule_texture != 0) {
+    glDeleteTextures(1, &scene->plant_capsule_texture);
+    scene->plant_capsule_texture = 0;
+    }
+
+    destroy_model(&scene->plant_capsule_model);
 
     destroy_model(&scene->inner_door_model);
 }

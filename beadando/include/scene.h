@@ -13,6 +13,7 @@
 #define MAX_PARTICLES 200
 #define SPARK_SOURCE_COUNT 2
 #define MAX_INNER_DOORS 8
+#define MAX_CRATES 32
 
 typedef struct Collider
 {
@@ -86,6 +87,16 @@ typedef struct InnerDoor
     int collider_index;
 } InnerDoor;
 
+typedef struct Crate
+{
+    float x;
+    float y;
+    float z;
+    float rotation_y;
+    float scale;
+    int collider_index;
+} Crate;
+
 typedef struct Scene
 {
     float floor_size;
@@ -112,6 +123,17 @@ typedef struct Scene
     Model door_panel_model;
     GLuint door_texture;
     Model generator_model;
+    Model crate_model;
+    GLuint crate_texture;
+
+    Model console_model;
+    GLuint console_texture;
+
+    Model desk_chair_model;
+    GLuint desk_chair_texture;
+
+    Model plant_capsule_model;
+    GLuint plant_capsule_texture;
     GLuint generator_texture;
     float exit_door_offset;
 
@@ -125,6 +147,8 @@ typedef struct Scene
 
     Particle particles[MAX_PARTICLES];
     SparkSource spark_sources[SPARK_SOURCE_COUNT];
+    Crate crates[MAX_CRATES];
+    int crate_count;
 
 } Scene;
 
