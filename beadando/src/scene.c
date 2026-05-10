@@ -1619,11 +1619,14 @@ void init_scene(Scene* scene)
 add_plant_capsule(scene, -17.0f, 0.0f, 0.8f, 0.0f, 0.5f);
 add_collider(scene, -17.0f, 0.8f, 1.0f, 1.0f);
 
+add_plant_capsule(scene, 4.0f, 0.0f, 2.5f, 0.0f, 0.5f);
+add_collider(scene, 4.0f, 2.5f, 1.0f, 1.0f);
+
 add_plant_capsule(scene, -15.5f, 0.0f, 10.0f, 90.0f, 0.5f);
 add_collider(scene, -15.5f, 10.0f, 1.0f, 1.0f);
 
-add_plant_capsule(scene, -11.8f, 0.0f, 5.2f, 180.0f, 0.5f);
-add_collider(scene, -11.8f, 5.2f, 1.0f, 1.0f);
+add_plant_capsule(scene, -12.0f, 0.0f, 5.2f, 180.0f, 0.5f);
+add_collider(scene, -12.0f, 5.2f, 1.0f, 1.0f);
 
 
 add_plant_capsule(scene, -11.6f, 0.0f, 7.8f, 90.0f, 0.5f);
@@ -1636,8 +1639,8 @@ add_plant_capsule(scene, -2.0f, 0.0f, 4.6f, 180.0f, 0.5f);
 add_collider(scene, -2.0f, 4.6f, 1.0f, 1.0f);
 
 
-add_plant_capsule(scene, 4.8f, 0.0f, 5.0f, 0.0f, 0.5f);
-add_collider(scene, 4.8f, 5.0f, 1.0f, 1.0f);
+add_plant_capsule(scene, 4.0f, 0.0f, 5.0f, 0.0f, 0.5f);
+add_collider(scene, 4.0f, 5.0f, 1.0f, 1.0f);
 
 add_plant_capsule(scene, 6.8f, 0.0f, 7.6f, 90.0f, 0.5f);
 add_collider(scene, 6.8f, 7.6f, 1.0f, 1.0f);
