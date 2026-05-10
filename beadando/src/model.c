@@ -88,8 +88,12 @@ static void add_model_vertex(Model* model, int position_index, int texcoord_inde
     vertex->y = position.y;
     vertex->z = position.z;
 
+    /*
+        Itt mar nem forditunk U/V koordinatat.
+        A flipet a load_model_internal() intezi betolteskor.
+    */
     vertex->u = texcoord.u;
-    vertex->v = 1.0f - texcoord.v;
+    vertex->v = texcoord.v;
 
     model->vertex_count++;
 }
@@ -106,7 +110,12 @@ static void add_triangle(
     add_model_vertex(model, p3, t3);
 }
 
-int load_model(Model* model, const char* filename)
+static int load_model_internal(
+    Model* model,
+    const char* filename,
+    int flip_u,
+    int flip_v
+)
 {
     FILE* file;
     char line[512];
@@ -145,6 +154,18 @@ int load_model(Model* model, const char* filename)
                     &texcoords[texcoord_count].v
                 );
 
+                /*
+                    Ha a texturak rosszul jelennek meg,
+                    akkor modellenkent lehet U/V flipet kerni.
+                */
+                if (flip_u) {
+                    texcoords[texcoord_count].u = 1.0f - texcoords[texcoord_count].u;
+                }
+
+                if (flip_v) {
+                    texcoords[texcoord_count].v = 1.0f - texcoords[texcoord_count].v;
+                }
+
                 texcoord_count++;
             }
         }
@@ -173,8 +194,8 @@ int load_model(Model* model, const char* filename)
                 }
 
                 /*
-                    Ha a face négyszög vagy több pontból áll,
-                    akkor háromszögekre bontjuk.
+                    Ha a face haromszognel tobb pontbol all,
+                    akkor triangle fan modon haromszogekre bontjuk.
                 */
                 for (i = 1; i < token_count - 1; ++i) {
                     add_triangle(
@@ -195,6 +216,11 @@ int load_model(Model* model, const char* filename)
     return 1;
 }
 
+int load_model(Model* model, const char* filename)
+{
+    return load_model_internal(model, filename, 0, 0);
+}
+
 void render_model(const Model* model)
 {
     int i;
@@ -202,7 +228,10 @@ void render_model(const Model* model)
     glBegin(GL_TRIANGLES);
 
     for (i = 0; i < model->vertex_count; ++i) {
-        glTexCoord2f(model->vertices[i].u, model->vertices[i].v);
+        glTexCoord2f(
+            model->vertices[i].u,
+            model->vertices[i].v
+        );
 
         glVertex3f(
             model->vertices[i].x,

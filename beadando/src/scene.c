@@ -184,17 +184,26 @@ static void draw_particles(const Scene* scene)
 
 static void init_spark_sources(Scene* scene)
 {
-    scene->spark_sources[0].x = -16.5f;
-    scene->spark_sources[0].y = 0.8f;
-    scene->spark_sources[0].z = 5.5f;
+    /* Z4 generator */
+    scene->spark_sources[0].x = -15.0f;
+    scene->spark_sources[0].y = 1.0f;
+    scene->spark_sources[0].z = -11.0f;
     scene->spark_sources[0].timer = 0.0f;
     scene->spark_sources[0].next_emit_time = random_float(0.2f, 1.0f);
 
-    scene->spark_sources[1].x = 13.0f;
-    scene->spark_sources[1].y = 0.8f;
+    /* A5 generator */
+    scene->spark_sources[1].x = -18.6f;
+    scene->spark_sources[1].y = 1.0f;
     scene->spark_sources[1].z = 3.0f;
     scene->spark_sources[1].timer = 0.0f;
     scene->spark_sources[1].next_emit_time = random_float(0.2f, 1.0f);
+
+    /* B5 generator */
+    scene->spark_sources[2].x = -18.5f;
+    scene->spark_sources[2].y = 1.0f;
+    scene->spark_sources[2].z = 18.2f;
+    scene->spark_sources[2].timer = 0.0f;
+    scene->spark_sources[2].next_emit_time = random_float(0.2f, 1.0f);
 }
 /* ---------- Scene helper functions ---------- */
 
@@ -1301,7 +1310,7 @@ void init_scene(Scene* scene)
 
     if (!load_model(&scene->plant_capsule_model, "assets/models/plant_capsule.obj")) {
     printf("Failed to load plant_capsule.obj\n");
-    }
+}
 
     /* =========================
    FALAK A VEGLEGES GEOGEBRA RAJZ ALAPJAN
@@ -1474,202 +1483,191 @@ void init_scene(Scene* scene)
     /* Vízszintes falnyílás */
     add_inner_door(scene, -15.5f,  -6.0f, 0.0f, 1.0f,  -1.0f);
 
-    /* Generatorok */
-    add_generator(scene, -15.0f, -11.0f);
-    add_generator(scene,  15.5f,  -3.5f);
-    add_generator(scene, -10.0f,  17.0f);
-
-    /* Generator colliderjei */
-    add_collider(scene, -15.0f, -11.0f, 1.0f, 1.0f);
-    add_collider(scene,  15.5f,  -3.5f, 1.0f, 1.0f);
-    add_collider(scene, -10.0f,  17.0f, 1.0f, 1.0f);
-
-   /* =========================
-   CRATE LEOSZTAS - UJ VERZIO
-   scale mindig 0.01f
-   csak az also crate kap collidert
-   ========================= */
 
 /* =========================
-   1. Bal also raktar
+   PLANT / CRYO CAPSULE-EK
+   crate-ekhez nem ernek hozza
+   scale = 0.5f
+   collider = 1.2 x 1.2
    ========================= */
 
-/* dupla rakas */
-add_crate(scene, -17.5f, 0.7f, -15.5f, 0.0f, 0.01f);
-add_collider(scene, -17.5f, -15.5f, 1.0f, 1.0f);
-add_crate(scene, -17.5f, 1.5f, -15.5f, 0.0f, 0.01f);
+/* Bal kozep / diszito resz */
+add_plant_capsule(scene, -17.2f, 0.0f, 0.8f, 0.0f, 0.5f);
+add_collider(scene, -17.2f, 0.8f, 1.2f, 1.2f);
 
-/* szimpla */
-add_crate(scene, -15.8f, 0.7f, -15.2f, 0.0f, 0.01f);
-add_collider(scene, -15.8f, -15.2f, 1.0f, 1.0f);
+add_plant_capsule(scene, -15.5f, 0.0f, 10.2f, 90.0f, 0.5f);
+add_collider(scene, -15.5f, 10.2f, 1.2f, 1.2f);
 
-/* dupla rakas */
-add_crate(scene, -18.2f, 0.7f, -12.8f, 90.0f, 0.01f);
-add_collider(scene, -18.2f, -12.8f, 1.0f, 1.0f);
-add_crate(scene, -18.2f, 1.5f, -12.8f, 90.0f, 0.01f);
+/* ez el volt csuszva a crate-tel, ezert odebb rakva */
+add_plant_capsule(scene, -12.2f, 0.0f, 4.5f, 180.0f, 0.5f);
+add_collider(scene, -12.2f, 4.5f, 1.2f, 1.2f);
 
-/* szimpla */
-add_crate(scene, -14.8f, 0.7f, -11.8f, 90.0f, 0.01f);
-add_collider(scene, -14.8f, -11.8f, 1.0f, 1.0f);
 
-/* szimpla */
-add_crate(scene, -12.8f, 0.7f, -8.2f, 0.0f, 0.01f);
-add_collider(scene, -12.8f, -8.2f, 1.0f, 1.0f);
+/* Kozep-bal */
+add_plant_capsule(scene, -6.4f, 0.0f, 9.0f, 0.0f, 0.5f);
+add_collider(scene, -6.4f, 9.0f, 1.2f, 1.2f);
 
+/* ez a -9.2, 8.0 kozel volt a -8.0, 7.3 crate-hez */
+add_plant_capsule(scene, -10.4f, 0.0f, 7.8f, 90.0f, 0.5f);
+add_collider(scene, -10.4f, 7.8f, 1.2f, 1.2f);
+
+/* ez a -4.0, 5.1 kozel volt a -3.5, 6.0 crate-hez */
+add_plant_capsule(scene, -2.0f, 0.0f, 4.6f, 180.0f, 0.5f);
+add_collider(scene, -2.0f, 4.6f, 1.2f, 1.2f);
+
+
+/* Kozep / nagyobb terem */
+add_plant_capsule(scene, 4.5f, 0.0f, 5.2f, 0.0f, 0.5f);
+add_collider(scene, 4.5f, 5.2f, 1.2f, 1.2f);
+
+add_plant_capsule(scene, 6.7f, 0.0f, 8.5f, 90.0f, 0.5f);
+add_collider(scene, 6.7f, 8.5f, 1.2f, 1.2f);
+
+
+/* Jobb felso / latvanyos disz */
+add_plant_capsule(scene, 10.0f, 0.0f, 14.0f, 180.0f, 0.5f);
+add_collider(scene, 10.0f, 14.0f, 1.2f, 1.2f);
+
+/* el volt tul kozel a 12.2, 16.6 crate-hez */
+add_plant_capsule(scene, 13.8f, 0.0f, 17.0f, 90.0f, 0.5f);
+add_collider(scene, 13.8f, 17.0f, 1.2f, 1.2f);
+
+/* el volt tul kozel a 15.8, 13.2 crate-hez */
+add_plant_capsule(scene, 17.0f, 0.0f, 15.5f, 0.0f, 0.5f);
+add_collider(scene, 17.0f, 15.5f, 1.2f, 1.2f);
+
+
+/* Jobb also / raktar disz */
+add_plant_capsule(scene, 10.0f, 0.0f, -15.0f, 180.0f, 0.5f);
+add_collider(scene, 10.0f, -15.0f, 1.2f, 1.2f);
+
+add_plant_capsule(scene, 15.5f, 0.0f, -12.0f, 90.0f, 0.5f);
+add_collider(scene, 15.5f, -12.0f, 1.2f, 1.2f);
+
+
+/* Plusz plant capsule-ok, hogy szinesebb legyen */
+add_plant_capsule(scene, -17.0f, 0.0f, 15.2f, 0.0f, 0.5f);
+add_collider(scene, -17.0f, 15.2f, 1.2f, 1.2f);
+
+add_plant_capsule(scene, -6.0f, 0.0f, 16.5f, 90.0f, 0.5f);
+add_collider(scene, -6.0f, 16.5f, 1.2f, 1.2f);
+
+add_plant_capsule(scene, 2.0f, 0.0f, -2.8f, 180.0f, 0.5f);
+add_collider(scene, 2.0f, -2.8f, 1.2f, 1.2f);
+
+add_plant_capsule(scene, 14.5f, 0.0f, 2.0f, 90.0f, 0.5f);
+add_collider(scene, 14.5f, 2.0f, 1.2f, 1.2f);
+    
+    add_generator(scene, -15.0f, -11.0f);   /* Z4 */
+    add_generator(scene, -18.6f,   3.0f);   /* A5 */
+    add_generator(scene, -18.5f,  18.2f);   /* B5 */
+
+/* Generator colliderjei */
+    add_collider(scene, -15.0f, -11.0f, 1.2f, 1.2f);
+    add_collider(scene, -18.6f,   3.0f, 1.2f, 1.2f);
+    add_collider(scene, -18.5f,  18.2f, 1.2f, 1.2f);
 
 /* =========================
-   2. Bal kozep / szikrazo resz
+   CRATE-EK - JAVITOTT ELRENDEZES
+   Geogebra szakaszokat figyelembe veve
+   doboz kb. 1.6 x 1.6
+   collider = 1.6 x 1.6
+   scale = 0.01f
    ========================= */
 
-/* szimpla */
-add_crate(scene, -17.2f, 0.7f, 4.8f, 0.0f, 0.01f);
-add_collider(scene, -17.2f, 4.8f, 1.0f, 1.0f);
+/* Bal also sarok / raktar */
+add_crate(scene, -18.7f, 0.7f, -18.7f, 0.0f, 0.01f);
+add_collider(scene, -18.7f, -18.7f, 1.6f, 1.6f);
 
-/* dupla rakas */
-add_crate(scene, -15.0f, 0.7f, 5.5f, 90.0f, 0.01f);
-add_collider(scene, -15.0f, 5.5f, 1.0f, 1.0f);
-add_crate(scene, -15.0f, 1.5f, 5.5f, 90.0f, 0.01f);
+add_crate(scene, -12.2f, 0.7f, -18.7f, 90.0f, 0.01f);
+add_collider(scene, -12.2f, -18.7f, 1.6f, 1.6f);
 
-/* szimpla */
-add_crate(scene, -13.2f, 0.7f, 7.5f, 0.0f, 0.01f);
-add_collider(scene, -13.2f, 7.5f, 1.0f, 1.0f);
+add_crate(scene, -18.7f, 0.7f, -11.5f, 0.0f, 0.01f);
+add_collider(scene, -18.7f, -11.5f, 1.6f, 1.6f);
 
-
-/* =========================
-   3. Bal felso / labor kornyeke
-   ========================= */
-
-/* szimpla */
-add_crate(scene, -17.5f, 0.7f, 14.8f, 0.0f, 0.01f);
-add_collider(scene, -17.5f, 14.8f, 1.0f, 1.0f);
-
-/* dupla rakas */
-add_crate(scene, -15.2f, 0.7f, 16.2f, 90.0f, 0.01f);
-add_collider(scene, -15.2f, 16.2f, 1.0f, 1.0f);
-add_crate(scene, -15.2f, 1.5f, 16.2f, 90.0f, 0.01f);
-
-/* szimpla */
-add_crate(scene, -9.5f, 0.7f, 15.0f, 0.0f, 0.01f);
-add_collider(scene, -9.5f, 15.0f, 1.0f, 1.0f);
-
-/* szimpla */
-add_crate(scene, -4.0f, 0.7f, 16.5f, 90.0f, 0.01f);
-add_collider(scene, -4.0f, 16.5f, 1.0f, 1.0f);
+/* dupla rakas, bal also belso resz */
+add_crate(scene, -13.0f, 0.7f, -12.2f, 90.0f, 0.01f);
+add_collider(scene, -13.0f, -12.2f, 1.6f, 1.6f);
+add_crate(scene, -13.0f, 1.5f, -12.2f, 90.0f, 0.01f);
 
 
-/* =========================
-   4. Kozepso nagy terem
-   ========================= */
+/* Bal kozep / fal melletti disz */
+/* ez korabban a generatorra logott, ezert at lett rakva */
+add_crate(scene, -18.7f, 0.7f, 5.2f, 0.0f, 0.01f);
+add_collider(scene, -18.7f, 5.2f, 1.6f, 1.6f);
 
-/* szimpla */
-add_crate(scene, -1.5f, 0.7f, -3.5f, 0.0f, 0.01f);
-add_collider(scene, -1.5f, -3.5f, 1.0f, 1.0f);
-
-/* dupla rakas */
-add_crate(scene, 1.5f, 0.7f, -2.5f, 90.0f, 0.01f);
-add_collider(scene, 1.5f, -2.5f, 1.0f, 1.0f);
-add_crate(scene, 1.5f, 1.5f, -2.5f, 90.0f, 0.01f);
-
-/* szimpla */
-add_crate(scene, 3.8f, 0.7f, 6.5f, 0.0f, 0.01f);
-add_collider(scene, 3.8f, 6.5f, 1.0f, 1.0f);
+/* ez korabban pontosan egy planten volt, kicsit lentebb rakva */
+add_crate(scene, -14.0f, 0.7f, 2.8f, 90.0f, 0.01f);
+add_collider(scene, -14.0f, 2.8f, 1.6f, 1.6f);
 
 
-/* =========================
-   5. Jobb also raktar
-   ========================= */
+/* Kozep-bal / nagyobb terem szelen */
+add_crate(scene, -8.0f, 0.7f, 6.2f, 0.0f, 0.01f);
+add_collider(scene, -8.0f, 6.2f, 1.6f, 1.6f);
 
-/* szimpla */
-add_crate(scene, 9.5f, 0.7f, -15.2f, 0.0f, 0.01f);
-add_collider(scene, 9.5f, -15.2f, 1.0f, 1.0f);
-
-/* dupla rakas */
-add_crate(scene, 12.0f, 0.7f, -14.0f, 90.0f, 0.01f);
-add_collider(scene, 12.0f, -14.0f, 1.0f, 1.0f);
-add_crate(scene, 12.0f, 1.5f, -14.0f, 90.0f, 0.01f);
-
-/* szimpla */
-add_crate(scene, 15.5f, 0.7f, -11.5f, 0.0f, 0.01f);
-add_collider(scene, 15.5f, -11.5f, 1.0f, 1.0f);
+add_crate(scene, -3.5f, 0.7f, 7.2f, 90.0f, 0.01f);
+add_collider(scene, -3.5f, 7.2f, 1.6f, 1.6f);
 
 
-/* =========================
-   6. Jobb kozep / gepterem
-   ========================= */
+/* Also kozep / starttol jobbra, falaktol tavolabb */
+add_crate(scene, 3.5f, 0.7f, -13.0f, 0.0f, 0.01f);
+add_collider(scene, 3.5f, -13.0f, 1.6f, 1.6f);
 
-/* szimpla */
-add_crate(scene, 12.2f, 0.7f, 2.5f, 0.0f, 0.01f);
-add_collider(scene, 12.2f, 2.5f, 1.0f, 1.0f);
-
-/* dupla rakas */
-add_crate(scene, 15.0f, 0.7f, 4.0f, 90.0f, 0.01f);
-add_collider(scene, 15.0f, 4.0f, 1.0f, 1.0f);
-add_crate(scene, 15.0f, 1.5f, 4.0f, 90.0f, 0.01f);
-
-/* szimpla */
-add_crate(scene, 13.5f, 0.7f, 7.5f, 0.0f, 0.01f);
-add_collider(scene, 13.5f, 7.5f, 1.0f, 1.0f);
+add_crate(scene, 4.0f, 0.7f, -7.0f, 90.0f, 0.01f);
+add_collider(scene, 4.0f, -7.0f, 1.6f, 1.6f);
 
 
-/* =========================
-   7. Jobb felso
-   ========================= */
+/* Jobb also / raktar */
+add_crate(scene, 8.7f, 0.7f, -18.7f, 0.0f, 0.01f);
+add_collider(scene, 8.7f, -18.7f, 1.6f, 1.6f);
 
-/* szimpla */
-add_crate(scene, 15.5f, 0.7f, 13.0f, 0.0f, 0.01f);
-add_collider(scene, 15.5f, 13.0f, 1.0f, 1.0f);
+add_crate(scene, 12.0f, 0.7f, -13.5f, 90.0f, 0.01f);
+add_collider(scene, 12.0f, -13.5f, 1.6f, 1.6f);
 
-/* dupla rakas */
-add_crate(scene, 13.0f, 0.7f, 16.0f, 90.0f, 0.01f);
-add_collider(scene, 13.0f, 16.0f, 1.0f, 1.0f);
-add_crate(scene, 13.0f, 1.5f, 16.0f, 90.0f, 0.01f);
+add_crate(scene, 16.7f, 0.7f, -11.5f, 0.0f, 0.01f);
+add_collider(scene, 16.7f, -11.5f, 1.6f, 1.6f);
 
-/* =========================
-   PLANT CAPSULE DEKORACIOK
-   collider nelkul
-   scale = 2.0f
-   ========================= */
-
-/* Bal felso / labor resz */
-add_plant_capsule(scene, -17.0f, 0.0f, 14.0f, 0.0f, 2.0f);
-add_plant_capsule(scene, -10.5f, 0.0f, 17.5f, 90.0f, 2.0f);
-add_plant_capsule(scene, -6.5f, 0.0f, 16.5f, 180.0f, 2.0f);
-add_plant_capsule(scene, -15.0f, 0.0f, 18.0f, 270.0f, 2.0f);
-
-/* Bal kozep / szikrazo resz */
-add_plant_capsule(scene, -15.5f, 0.0f, 4.5f, 0.0f, 2.0f);
-add_plant_capsule(scene, -18.0f, 0.0f, 6.8f, 90.0f, 2.0f);
-add_plant_capsule(scene, -13.5f, 0.0f, 8.2f, 180.0f, 2.0f);
-
-/* Bal also / raktar kornyeke */
-add_plant_capsule(scene, -18.0f, 0.0f, -13.0f, 0.0f, 2.0f);
-add_plant_capsule(scene, -12.5f, 0.0f, -12.5f, 90.0f, 2.0f);
-add_plant_capsule(scene, -18.0f, 0.0f, -8.5f, 180.0f, 2.0f);
-
-/* Felso kozep */
-add_plant_capsule(scene, -3.5f, 0.0f, 16.0f, 0.0f, 2.0f);
-add_plant_capsule(scene, 2.5f, 0.0f, 16.5f, 90.0f, 2.0f);
-add_plant_capsule(scene, 7.5f, 0.0f, 15.0f, 180.0f, 2.0f);
-
-/* Jobb felso */
-add_plant_capsule(scene, 8.5f, 0.0f, 14.5f, 90.0f, 2.0f);
-add_plant_capsule(scene, 16.0f, 0.0f, 13.0f, 0.0f, 2.0f);
-add_plant_capsule(scene, 14.5f, 0.0f, 17.0f, 180.0f, 2.0f);
 
 /* Jobb kozep / gepterem */
-add_plant_capsule(scene, 14.5f, 0.0f, 2.0f, 180.0f, 2.0f);
-add_plant_capsule(scene, 11.5f, 0.0f, 5.5f, 90.0f, 2.0f);
-add_plant_capsule(scene, 16.5f, 0.0f, 6.5f, 270.0f, 2.0f);
+add_crate(scene, 11.7f, 0.7f, 2.5f, 0.0f, 0.01f);
+add_collider(scene, 11.7f, 2.5f, 1.6f, 1.6f);
 
-/* Jobb also */
-add_plant_capsule(scene, 10.5f, 0.0f, -13.5f, 0.0f, 2.0f);
-add_plant_capsule(scene, 16.5f, 0.0f, -12.0f, 90.0f, 2.0f);
-add_plant_capsule(scene, 18.0f, 0.0f, -8.5f, 180.0f, 2.0f);
+add_crate(scene, 16.7f, 0.7f, 5.5f, 90.0f, 0.01f);
+add_collider(scene, 16.7f, 5.5f, 1.6f, 1.6f);
 
-/* Kozepso terem */
-add_plant_capsule(scene, 4.0f, 0.0f, 6.0f, 90.0f, 2.0f);
-add_plant_capsule(scene, -3.5f, 0.0f, 6.5f, 180.0f, 2.0f);
-add_plant_capsule(scene, 2.0f, 0.0f, -2.5f, 270.0f, 2.0f);
+add_crate(scene, 12.0f, 0.7f, 7.8f, 0.0f, 0.01f);
+add_collider(scene, 12.0f, 7.8f, 1.6f, 1.6f);
+
+
+/* Jobb felso / fal melletti, de nem falon at */
+add_crate(scene, 15.8f, 0.7f, 13.2f, 0.0f, 0.01f);
+add_collider(scene, 15.8f, 13.2f, 1.6f, 1.6f);
+
+add_crate(scene, 12.2f, 0.7f, 16.6f, 90.0f, 0.01f);
+add_collider(scene, 12.2f, 16.6f, 1.6f, 1.6f);
+
+
+/* Felso kozep / exit korul, de nem az ajto elott */
+add_crate(scene, 7.5f, 0.7f, 15.5f, 0.0f, 0.01f);
+add_collider(scene, 7.5f, 15.5f, 1.6f, 1.6f);
+
+
+/* Plusz crate-ek hasonlo, biztonsagos helyekre */
+add_crate(scene, -16.2f, 0.7f, -18.5f, 90.0f, 0.01f);
+add_collider(scene, -16.2f, -18.5f, 1.6f, 1.6f);
+
+add_crate(scene, -16.2f, 1.5f, -18.5f, 90.0f, 0.01f);
+
+add_crate(scene, -11.8f, 0.7f, -15.0f, 0.0f, 0.01f);
+add_collider(scene, -11.8f, -15.0f, 1.6f, 1.6f);
+
+add_crate(scene, 15.5f, 0.7f, -15.0f, 90.0f, 0.01f);
+add_collider(scene, 15.5f, -15.0f, 1.6f, 1.6f);
+
+add_crate(scene, 15.5f, 1.5f, -15.0f, 90.0f, 0.01f);
+
+add_crate(scene, 9.0f, 0.7f, 11.5f, 0.0f, 0.01f);
+add_collider(scene, 9.0f, 11.5f, 1.6f, 1.6f);
 }
 
 void update_scene(Scene* scene, double delta_time, float player_x, float player_z)
@@ -1823,7 +1821,7 @@ void render_scene(const Scene* scene)
         scene->plant_capsules[i].rotation_y,
         scene->plant_capsules[i].scale
     );
-}
+    }
 }
 
 void destroy_scene(Scene* scene)
