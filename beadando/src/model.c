@@ -8,6 +8,13 @@
 #define MAX_TEXCOORDS 50000
 #define MAX_FACE_VERTICES 8
 
+#define UV_NORMAL 0
+#define UV_FLIP_U 1
+#define UV_FLIP_V 2
+#define UV_FLIP_UV 3
+#define UV_ROTATE_90 4
+#define UV_ROTATE_MINUS_90 5
+
 typedef struct Position
 {
     float x;
@@ -59,6 +66,39 @@ static void parse_face_vertex(const char* token, int* position_index, int* texco
     }
 }
 
+static void transform_uv(float* u, float* v, int uv_mode)
+{
+    float old_u = *u;
+    float old_v = *v;
+
+    if (uv_mode == UV_FLIP_U) {
+        *u = 1.0f - old_u;
+        *v = old_v;
+    }
+    else if (uv_mode == UV_FLIP_V) {
+        *u = old_u;
+        *v = 1.0f - old_v;
+    }
+    else if (uv_mode == UV_FLIP_UV) {
+        *u = 1.0f - old_u;
+        *v = 1.0f - old_v;
+    }
+    else if (uv_mode == UV_ROTATE_90) {
+        /*
+            Textura 90 fokos forgatasa UV-ben.
+        */
+        *u = old_v;
+        *v = 1.0f - old_u;
+    }
+    else if (uv_mode == UV_ROTATE_MINUS_90) {
+        /*
+            Textura -90 fokos forgatasa UV-ben.
+        */
+        *u = 1.0f - old_v;
+        *v = old_u;
+    }
+}
+
 static void add_model_vertex(Model* model, int position_index, int texcoord_index)
 {
     ModelVertex* vertex;
@@ -88,10 +128,6 @@ static void add_model_vertex(Model* model, int position_index, int texcoord_inde
     vertex->y = position.y;
     vertex->z = position.z;
 
-    /*
-        Itt mar nem forditunk U/V koordinatat.
-        A flipet a load_model_internal() intezi betolteskor.
-    */
     vertex->u = texcoord.u;
     vertex->v = texcoord.v;
 
@@ -110,12 +146,7 @@ static void add_triangle(
     add_model_vertex(model, p3, t3);
 }
 
-static int load_model_internal(
-    Model* model,
-    const char* filename,
-    int flip_u,
-    int flip_v
-)
+static int load_model_internal(Model* model, const char* filename, int uv_mode)
 {
     FILE* file;
     char line[512];
@@ -154,17 +185,11 @@ static int load_model_internal(
                     &texcoords[texcoord_count].v
                 );
 
-                /*
-                    Ha a texturak rosszul jelennek meg,
-                    akkor modellenkent lehet U/V flipet kerni.
-                */
-                if (flip_u) {
-                    texcoords[texcoord_count].u = 1.0f - texcoords[texcoord_count].u;
-                }
-
-                if (flip_v) {
-                    texcoords[texcoord_count].v = 1.0f - texcoords[texcoord_count].v;
-                }
+                transform_uv(
+                    &texcoords[texcoord_count].u,
+                    &texcoords[texcoord_count].v,
+                    uv_mode
+                );
 
                 texcoord_count++;
             }
@@ -193,10 +218,6 @@ static int load_model_internal(
                     parse_face_vertex(tokens[i], &p[i], &t[i]);
                 }
 
-                /*
-                    Ha a face haromszognel tobb pontbol all,
-                    akkor triangle fan modon haromszogekre bontjuk.
-                */
                 for (i = 1; i < token_count - 1; ++i) {
                     add_triangle(
                         model,
@@ -218,7 +239,11 @@ static int load_model_internal(
 
 int load_model(Model* model, const char* filename)
 {
-    return load_model_internal(model, filename, 0, 0);
+    return load_model_internal(model, filename, UV_NORMAL);
+}
+int load_model_flip_v(Model* model, const char* filename)
+{
+    return load_model_internal(model, filename, UV_FLIP_V);
 }
 
 void render_model(const Model* model)

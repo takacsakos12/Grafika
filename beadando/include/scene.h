@@ -8,7 +8,7 @@
 
 #define MAX_COLLIDERS 160
 #define MAX_GENERATORS 3
-#define DRONE_WAYPOINT_COUNT 2
+#define DRONE_WAYPOINT_COUNT 3
 #define MAX_DRONES 2
 #define MAX_PARTICLES 200
 #define SPARK_SOURCE_COUNT 3
@@ -45,6 +45,7 @@ typedef struct Drone
     float direction_angle;
 
     int current_waypoint;
+    int waypoint_direction;
 } Drone;
 
 typedef struct Particle

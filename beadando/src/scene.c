@@ -184,24 +184,24 @@ static void draw_particles(const Scene* scene)
 
 static void init_spark_sources(Scene* scene)
 {
-    /* Z4 generator */
+    /* Bal also generator */
     scene->spark_sources[0].x = -15.0f;
     scene->spark_sources[0].y = 1.0f;
     scene->spark_sources[0].z = -11.0f;
     scene->spark_sources[0].timer = 0.0f;
     scene->spark_sources[0].next_emit_time = random_float(0.2f, 1.0f);
 
-    /* A5 generator */
-    scene->spark_sources[1].x = -18.6f;
+    /* Jobb also szoba generator */
+    scene->spark_sources[1].x = 10.5f;
     scene->spark_sources[1].y = 1.0f;
-    scene->spark_sources[1].z = 3.0f;
+    scene->spark_sources[1].z = -16.5f;
     scene->spark_sources[1].timer = 0.0f;
     scene->spark_sources[1].next_emit_time = random_float(0.2f, 1.0f);
 
-    /* B5 generator */
-    scene->spark_sources[2].x = -18.5f;
+    /* Exit bal oldali generator */
+    scene->spark_sources[2].x = -6.2f;
     scene->spark_sources[2].y = 1.0f;
-    scene->spark_sources[2].z = 18.2f;
+    scene->spark_sources[2].z = 18.0f;
     scene->spark_sources[2].timer = 0.0f;
     scene->spark_sources[2].next_emit_time = random_float(0.2f, 1.0f);
 }
@@ -224,17 +224,23 @@ static void add_collider(Scene* scene, float x, float z, float width, float dept
 
 static const float drone_waypoints[MAX_DRONES][DRONE_WAYPOINT_COUNT][2] = {
     {
-        {-8.0f, -3.5f},
+        /* Bal dron: eloszor kozep felol megy a folyosora, utana fel-le */
+        {-3.0f, -7.0f},
+        {-8.0f, -7.0f},
         {-8.0f,  7.5f}
     },
     {
-        {16.0f, -6.5f},
+        /* Jobb dron: eloszor kozep felol megy a folyosora, utana fel-le */
+        {11.5f, -7.5f},
+        {16.0f, -7.5f},
         {16.0f,  8.5f}
     }
 };
 
 static void draw_drone_path(int index)
 {
+    int i;
+
     glDisable(GL_TEXTURE_2D);
     glDisable(GL_LIGHTING);
 
@@ -242,17 +248,19 @@ static void draw_drone_path(int index)
 
     glBegin(GL_LINES);
 
-    glVertex3f(
-        drone_waypoints[index][0][0],
-        0.06f,
-        drone_waypoints[index][0][1]
-    );
+    for (i = 0; i < DRONE_WAYPOINT_COUNT - 1; ++i) {
+        glVertex3f(
+            drone_waypoints[index][i][0],
+            0.06f,
+            drone_waypoints[index][i][1]
+        );
 
-    glVertex3f(
-        drone_waypoints[index][1][0],
-        0.06f,
-        drone_waypoints[index][1][1]
-    );
+        glVertex3f(
+            drone_waypoints[index][i + 1][0],
+            0.06f,
+            drone_waypoints[index][i + 1][1]
+        );
+    }
 
     glEnd();
 
@@ -607,7 +615,10 @@ static void draw_generator(const Scene* scene, const Generator* generator)
     glPushMatrix();
 
     glTranslatef(generator->x, generator_y, generator->z);
+
+    
     glRotatef(0.0f, 0.0f, 1.0f, 0.0f);
+
     glScalef(generator_scale, generator_scale, generator_scale);
 
     render_model(&scene->generator_model);
@@ -725,8 +736,6 @@ static void draw_inner_door(const Scene* scene, const InnerDoor* door)
     glEnable(GL_CULL_FACE);
 }
 
-/* ---------- Collision ---------- */
-
 static float clamp_float(float value, float min, float max)
 {
     if (value < min) {
@@ -777,6 +786,194 @@ static bool circle_intersects_collider(
     return dx * dx + dz * dz < radius * radius;
 }
 
+static bool line_intersects_collider(
+    float x1,
+    float z1,
+    float x2,
+    float z2,
+    const Collider* collider
+)
+{
+    float min_x;
+    float max_x;
+    float min_z;
+    float max_z;
+
+    float dx;
+    float dz;
+
+    float t_min = 0.0f;
+    float t_max = 1.0f;
+
+    float p;
+    float q;
+    float r;
+
+    if (!collider->active) {
+        return false;
+    }
+
+    /*
+        Kicsit megnoveljuk a fal teglalapot, hogy biztosan ne lasson at
+        a vekony, 0.4-es falakon.
+    */
+    min_x = collider->x - collider->width / 2.0f - 0.05f;
+    max_x = collider->x + collider->width / 2.0f + 0.05f;
+
+    min_z = collider->z - collider->depth / 2.0f - 0.05f;
+    max_z = collider->z + collider->depth / 2.0f + 0.05f;
+
+    dx = x2 - x1;
+    dz = z2 - z1;
+
+    /* Bal oldal: x >= min_x */
+    p = -dx;
+    q = x1 - min_x;
+
+    if (p == 0.0f) {
+        if (q < 0.0f) {
+            return false;
+        }
+    }
+    else {
+        r = q / p;
+
+        if (p < 0.0f) {
+            if (r > t_max) {
+                return false;
+            }
+            if (r > t_min) {
+                t_min = r;
+            }
+        }
+        else {
+            if (r < t_min) {
+                return false;
+            }
+            if (r < t_max) {
+                t_max = r;
+            }
+        }
+    }
+
+    /* Jobb oldal: x <= max_x */
+    p = dx;
+    q = max_x - x1;
+
+    if (p == 0.0f) {
+        if (q < 0.0f) {
+            return false;
+        }
+    }
+    else {
+        r = q / p;
+
+        if (p < 0.0f) {
+            if (r > t_max) {
+                return false;
+            }
+            if (r > t_min) {
+                t_min = r;
+            }
+        }
+        else {
+            if (r < t_min) {
+                return false;
+            }
+            if (r < t_max) {
+                t_max = r;
+            }
+        }
+    }
+
+    /* Also oldal: z >= min_z */
+    p = -dz;
+    q = z1 - min_z;
+
+    if (p == 0.0f) {
+        if (q < 0.0f) {
+            return false;
+        }
+    }
+    else {
+        r = q / p;
+
+        if (p < 0.0f) {
+            if (r > t_max) {
+                return false;
+            }
+            if (r > t_min) {
+                t_min = r;
+            }
+        }
+        else {
+            if (r < t_min) {
+                return false;
+            }
+            if (r < t_max) {
+                t_max = r;
+            }
+        }
+    }
+
+    /* Felso oldal: z <= max_z */
+    p = dz;
+    q = max_z - z1;
+
+    if (p == 0.0f) {
+        if (q < 0.0f) {
+            return false;
+        }
+    }
+    else {
+        r = q / p;
+
+        if (p < 0.0f) {
+            if (r > t_max) {
+                return false;
+            }
+            if (r > t_min) {
+                t_min = r;
+            }
+        }
+        else {
+            if (r < t_min) {
+                return false;
+            }
+            if (r < t_max) {
+                t_max = r;
+            }
+        }
+    }
+
+    return true;
+}
+
+static bool is_wall_between_drone_and_player(
+    const Scene* scene,
+    float drone_x,
+    float drone_z,
+    float player_x,
+    float player_z
+)
+{
+    int i;
+
+    for (i = 0; i < scene->wall_count; ++i) {
+        if (line_intersects_collider(
+            drone_x,
+            drone_z,
+            player_x,
+            player_z,
+            &scene->colliders[i]
+        )) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 bool check_collision(const Scene* scene, float x, float z, float radius)
 {
     int i;
@@ -789,21 +986,6 @@ bool check_collision(const Scene* scene, float x, float z, float radius)
 
     return false;
 }
-
-static bool check_wall_collision(const Scene* scene, float x, float z, float radius)
-{
-    int i;
-
-    for (i = 0; i < scene->wall_count; ++i) {
-        if (circle_intersects_collider(x, z, radius, &scene->colliders[i])) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-/* ---------- Interaction ---------- */
 
 void interact_scene(Scene* scene, float player_x, float player_z)
 {
@@ -985,6 +1167,7 @@ static void init_drone(Drone* drone, int index)
     drone->direction_angle = 0.0f;
 
     drone->current_waypoint = 1;
+    drone->waypoint_direction = 1;
 }
 
 static void update_drone(Scene* scene, Drone* drone, int index, double delta_time)
@@ -1006,15 +1189,20 @@ static void update_drone(Scene* scene, Drone* drone, int index, double delta_tim
     distance = sqrtf(dx * dx + dz * dz);
 
     if (distance < 0.1f) {
-    if (drone->current_waypoint == 0) {
-        drone->current_waypoint = 1;
+    drone->current_waypoint += drone->waypoint_direction;
+
+    if (drone->current_waypoint >= DRONE_WAYPOINT_COUNT) {
+        drone->current_waypoint = DRONE_WAYPOINT_COUNT - 2;
+        drone->waypoint_direction = -1;
     }
-    else {
-        drone->current_waypoint = 0;
+
+    if (drone->current_waypoint < 0) {
+        drone->current_waypoint = 1;
+        drone->waypoint_direction = 1;
     }
 
     return;
-}
+    }
 
     drone->direction_angle = atan2f(dz, dx);
 
@@ -1028,7 +1216,12 @@ static void update_drone(Scene* scene, Drone* drone, int index, double delta_tim
 
 }
 
-static bool is_player_detected_by_drone(const Drone* drone, float player_x, float player_z)
+static bool is_player_detected_by_drone(
+    const Scene* scene,
+    const Drone* drone,
+    float player_x,
+    float player_z
+)
 {
     float dx;
     float dz;
@@ -1057,9 +1250,22 @@ static bool is_player_detected_by_drone(const Drone* drone, float player_x, floa
         angle_difference += 2.0f * (float)M_PI;
     }
 
-    return fabsf(angle_difference) <= drone->detection_angle / 2.0f;
-}
+    if (fabsf(angle_difference) > drone->detection_angle / 2.0f) {
+        return false;
+    }
 
+    if (is_wall_between_drone_and_player(
+        scene,
+        drone->x,
+        drone->z,
+        player_x,
+        player_z
+    )) {
+        return false;
+    }
+
+    return true;
+}
 static void draw_detection_sector(float x, float z, float radius, float direction_angle, float sector_angle)
 {
     int i;
@@ -1144,19 +1350,13 @@ static void draw_drone(const Drone* drone)
     glTranslatef(drone->x, drone->y, drone->z);
     glRotatef(-drone->direction_angle * 180.0f / (float)M_PI, 0.0f, 1.0f, 0.0f);
 
-    /* test */
     glColor3f(0.15f, 0.15f, 0.18f);
     draw_box(0.0f, 0.0f, 0.8f, 0.25f, 0.5f);
 
-    /* elülső jelzőfény */
     glColor3f(1.0f, 0.0f, 0.0f);
     draw_box(0.45f, 0.0f, 0.12f, 0.12f, 0.12f);
-
-    /* bal kar */
     glColor3f(0.25f, 0.25f, 0.28f);
     draw_box(0.0f, -0.45f, 0.25f, 0.08f, 0.9f);
-
-    /* jobb kar */
     draw_box(0.0f, 0.45f, 0.25f, 0.08f, 0.9f);
 
     glPopMatrix();
@@ -1184,11 +1384,6 @@ bool is_player_at_exit(const Scene* scene, float player_x, float player_z)
 
     return distance_squared <= exit_radius * exit_radius;
 }
-
-
-
-/* ---------- Scene lifecycle ---------- */
-
 
 void reset_scene(Scene* scene)
 {
@@ -1258,16 +1453,16 @@ void init_scene(Scene* scene)
     scene->wall_texture = load_texture("assets/textures/wall.bmp");
     scene->door_texture = load_texture("assets/textures/door.bmp");
     scene->ceiling_texture = load_texture("assets/textures/roof.bmp");
-    if (!load_model(&scene->door_frame_model, "assets/models/door_frame.obj")) {
+    if (!load_model_flip_v(&scene->door_frame_model, "assets/models/door_frame.obj")) {
     printf("Failed to load door_frame.obj\n");
     }
 
-    if (!load_model(&scene->door_panel_model, "assets/models/door_panel.obj")) {
+    if (!load_model_flip_v(&scene->door_panel_model, "assets/models/door_panel.obj")) {
     printf("Failed to load door_panel.obj\n");
     }
     scene->generator_texture = load_texture("assets/textures/generator.bmp");
 
-    if (!load_model(&scene->generator_model, "assets/models/generator.obj")) {
+    if (!load_model_flip_v(&scene->generator_model, "assets/models/generator.obj")) {
     printf("Failed to load generator.obj\n");
     }
     scene->inner_door_texture = load_texture("assets/textures/inner_door.bmp");
@@ -1312,24 +1507,11 @@ void init_scene(Scene* scene)
     printf("Failed to load plant_capsule.obj\n");
 }
 
-    /* =========================
-   FALAK A VEGLEGES GEOGEBRA RAJZ ALAPJAN
-   JAVITVA:
-   - inner_door atjarok egységesen kb. 1.5 szelesek
-   - x = jatek x
-   - GeoGebra y = jatek z
-   ========================= */
-
-    /* Kulso falak */
     add_vwall(scene, -20.0f, -20.0f, 20.0f);
     add_hwall(scene, -20.0f, 20.0f, -20.0f);
     add_vwall(scene, 20.0f, -20.0f, 20.0f);
-
-    /* Felso fal kijarati nyilassal - exit ajto x = 3.0 */
     add_hwall(scene, -20.0f, 1.5f, 20.0f);
     add_hwall(scene, 4.5f, 20.0f, 20.0f);
-
-/* Bal oldal / bal felso */
     add_hwall(scene, -20.0f, -10.0f, 0.0f);
     add_hwall(scene, -20.0f, -14.5f, 16.0f);
     add_vwall(scene, -13.0f, 16.0f, 20.0f);
@@ -1340,18 +1522,13 @@ void init_scene(Scene* scene)
     add_hwall(scene, -14.0f, -13.0f, 11.0f);
     add_vwall(scene, -13.0f, 11.0f, 13.0f);
     add_vwall(scene, -13.0f, 14.0f, 16.0f);
-
-    /* Felso kozep / kijarat kornyeke */
     add_hwall(scene, 1.0f, 5.0f, 17.0f);
     add_vwall(scene, 5.0f, 10.75f, 17.0f);
     add_vwall(scene, -2.0f, 18.0f, 20.0f);
     add_hwall(scene, -5.0f, -2.0f, 15.0f);
     add_vwall(scene, -5.0f, 13.0f, 15.0f);
     add_vwall(scene, -2.0f, 15.0f, 18.0f);
-
-    /* x = -5 ajto: kozep z = 10.0, nyilas z = 9.25 .. 10.75 */
     add_vwall(scene, -5.0f, 10.75f, 13.0f);
-
     add_hwall(scene, -11.5f, -5.0f, 12.0f);
     add_vwall(scene, -11.5f, 12.0f, 16.0f);
     add_vwall(scene, -11.5f, 16.0f, 18.5f);
@@ -1361,16 +1538,12 @@ void init_scene(Scene* scene)
     add_hwall(scene, -10.0f, -8.0f, 15.5f);
     add_vwall(scene, -10.0f, 13.5f, 15.5f);
     add_hwall(scene, -10.0f, -8.0f, 13.5f);
-
-/* Jobb felso */
     add_vwall(scene, 11.0f, 10.0f, 20.0f);
     add_hwall(scene, 11.0f, 18.5f, 10.0f);
     add_vwall(scene, 18.5f, 10.0f, 12.0f);
     add_hwall(scene, 13.0f, 18.5f, 12.0f);
     add_hwall(scene, 13.0f, 20.0f, 15.0f);
     add_vwall(scene, 13.0f, 15.0f, 18.0f);
-
-    /* Also kozep / start */
     add_vwall(scene, -2.0f, -20.0f, -12.0f);
     add_vwall(scene, 2.0f, -20.0f, -10.0f);
     add_hwall(scene, -6.0f, -2.0f, -10.0f);
@@ -1378,48 +1551,28 @@ void init_scene(Scene* scene)
     add_vwall(scene, -6.0f, -10.0f, -9.0f);
     add_hwall(scene, -7.0f, -6.0f, -9.0f);
     add_vwall(scene, -7.0f, -20.0f, -9.0f);
-
-    /* Bal also */
     add_hwall(scene, -10.0f, -7.0f, -9.0f);
     add_vwall(scene, -10.0f, -9.0f, -6.0f);
     add_hwall(scene, -14.0f, -10.0f, -6.0f);
-
-    /* z = -6 ajto: kozep x = -15.5, nyilas x = -16.25 .. -14.75 */
     add_hwall(scene, -20.0f, -16.25f, -6.0f);
     add_hwall(scene, -14.75f, -10.0f, -6.0f);
-
-    /* x = -10 ajto: kozep z = 1.5, nyilas z = 0.75 .. 2.25 */
     add_vwall(scene, -10.0f, -2.0f, 0.75f);
-
     add_hwall(scene, -20.0f, -16.0f, -14.0f);
-
-    /* x = -16 ajto: kozep z = -13.0, nyilas z = -13.75 .. -12.25 */
     add_vwall(scene, -16.0f, -16.0f, -13.75f);
-
     add_hwall(scene, -16.0f, -10.0f, -16.0f);
     add_vwall(scene, -10.0f, -16.0f, -14.0f);
-
     add_hwall(scene, -20.0f, -14.0f, -8.0f);
     add_vwall(scene, -14.0f, -10.0f, -8.0f);
     add_hwall(scene, -16.0f, -14.0f, -10.0f);
-
-    /* x = -16 ajto masik oldala */
     add_vwall(scene, -16.0f, -12.25f, -10.0f);
-
     add_hwall(scene, -16.0f, -14.0f, -12.0f);
-
-    /* Bal kozep / szikrazo oldal */
-
-    /* x = -10 ajto masik oldala */
     add_vwall(scene, -10.0f, 2.25f, 9.0f);
-
     add_hwall(scene, -10.0f, -6.0f, 9.0f);
     add_hwall(scene, -6.0f, -2.5f, 9.0f);
     add_vwall(scene, -2.5f, 9.0f, 11.0f);
     add_hwall(scene, -2.5f, 1.0f, 11.0f);
     add_vwall(scene, 1.0f, 9.0f, 11.0f);
     add_hwall(scene, 1.0f, 2.0f, 9.0f);
-
     add_vwall(scene, -14.0f, 8.0f, 11.0f);
     add_hwall(scene, -15.0f, -14.0f, 8.0f);
     add_vwall(scene, -15.0f, 4.0f, 8.0f);
@@ -1432,152 +1585,116 @@ void init_scene(Scene* scene)
     add_hwall(scene, -18.0f, -17.0f, 6.0f);
     add_vwall(scene, -17.0f, 5.0f, 6.0f);
     add_hwall(scene, -17.0f, -15.0f, 5.0f);
-
-    /* Kozepso nagy terem */
-
-    /* x = 5 ajto: kozep z = 10.0, nyilas z = 9.25 .. 10.75 */
     add_vwall(scene, 5.0f, -5.0f, 9.25f);
-
     add_vwall(scene, -6.0f, -5.0f, 9.0f);
     add_hwall(scene, -4.0f, 5.0f, -5.0f);
-
-    /* Jobb kozep / szikrazo oldal */
     add_vwall(scene, 10.0f, 4.0f, 6.0f);
     add_hwall(scene, 10.0f, 14.0f, 4.0f);
     add_vwall(scene, 10.0f, 6.0f, 7.0f);
     add_hwall(scene, 8.0f, 10.0f, 7.0f);
     add_vwall(scene, 8.0f, 7.0f, 9.0f);
     add_hwall(scene, 5.0f, 8.0f, 9.0f);
-
-    /* x = 14 ajto: kozep z = -0.5, nyilas z = -1.25 .. 0.25 */
     add_vwall(scene, 14.0f, 0.25f, 4.0f);
     add_vwall(scene, 14.0f, -5.0f, -1.25f);
-
     add_hwall(scene, 11.0f, 14.0f, -5.0f);
-
-    /* Jobb also / jobb oldal */
     add_vwall(scene, 7.0f, -20.0f, -10.0f);
     add_hwall(scene, 7.0f, 14.0f, -10.0f);
     add_hwall(scene, 17.0f, 20.0f, -10.0f);
     add_vwall(scene, 14.0f, -18.5f, -10.0f);
     add_hwall(scene, 18.0f, 20.0f, -8.0f);
-
-    /* x = 5 ajto felso oldala */
     add_vwall(scene, 5.0f, 10.75f, 17.0f);
-
-    /* Eddig tartanak a falak */
     scene->wall_count = scene->collider_count;
    
-    /* Kijarati ajto collider */
     scene->exit_door_collider_index = scene->collider_count;
     add_collider(scene, -1.0f, 19.7f, 3.0f, 0.4f);
 
-    /* Függőleges falnyílások */
     add_inner_door(scene, -5.0f,   10.0f, 90.0f, 1.0f,  -1.0f);
     add_inner_door(scene, -16.0f, -12.85f, 90.0f, 1.0f,  -1.0f);
     add_inner_door(scene, -10.0f,   1.5f, 90.0f, 1.0f,  -1.0f);
     add_inner_door(scene,  5.0f,   10.0f, 90.0f,  -1.0f, 1.0f);
     add_inner_door(scene, 14.0f,   -0.5f, 90.0f,  -1.0f, 1.0f);
-    //add_inner_door(scene, -15.35f, -6.0f, 0.0f, 1.0f,  -1.0f);
-
-    /* Vízszintes falnyílás */
     add_inner_door(scene, -15.5f,  -6.0f, 0.0f, 1.0f,  -1.0f);
 
 
-/* =========================
-   PLANT / CRYO CAPSULE-EK
-   crate-ekhez nem ernek hozza
-   scale = 0.5f
-   collider = 1.2 x 1.2
-   ========================= */
+add_plant_capsule(scene, -17.0f, 0.0f, 0.8f, 0.0f, 0.5f);
+add_collider(scene, -17.0f, 0.8f, 1.0f, 1.0f);
 
-/* Bal kozep / diszito resz */
-add_plant_capsule(scene, -17.2f, 0.0f, 0.8f, 0.0f, 0.5f);
-add_collider(scene, -17.2f, 0.8f, 1.2f, 1.2f);
+add_plant_capsule(scene, -15.5f, 0.0f, 10.0f, 90.0f, 0.5f);
+add_collider(scene, -15.5f, 10.0f, 1.0f, 1.0f);
 
-add_plant_capsule(scene, -15.5f, 0.0f, 10.2f, 90.0f, 0.5f);
-add_collider(scene, -15.5f, 10.2f, 1.2f, 1.2f);
-
-/* ez el volt csuszva a crate-tel, ezert odebb rakva */
-add_plant_capsule(scene, -12.2f, 0.0f, 4.5f, 180.0f, 0.5f);
-add_collider(scene, -12.2f, 4.5f, 1.2f, 1.2f);
+add_plant_capsule(scene, -11.8f, 0.0f, 5.2f, 180.0f, 0.5f);
+add_collider(scene, -11.8f, 5.2f, 1.0f, 1.0f);
 
 
-/* Kozep-bal */
-add_plant_capsule(scene, -6.4f, 0.0f, 9.0f, 0.0f, 0.5f);
-add_collider(scene, -6.4f, 9.0f, 1.2f, 1.2f);
+add_plant_capsule(scene, -11.6f, 0.0f, 7.8f, 90.0f, 0.5f);
+add_collider(scene, -11.6f, 7.8f, 1.0f, 1.0f);
 
-/* ez a -9.2, 8.0 kozel volt a -8.0, 7.3 crate-hez */
-add_plant_capsule(scene, -10.4f, 0.0f, 7.8f, 90.0f, 0.5f);
-add_collider(scene, -10.4f, 7.8f, 1.2f, 1.2f);
+add_plant_capsule(scene, -4.9f, 0.0f, 7.8f, 0.0f, 0.5f);
+add_collider(scene, -4.9f, 7.8f, 1.0f, 1.0f);
 
-/* ez a -4.0, 5.1 kozel volt a -3.5, 6.0 crate-hez */
 add_plant_capsule(scene, -2.0f, 0.0f, 4.6f, 180.0f, 0.5f);
-add_collider(scene, -2.0f, 4.6f, 1.2f, 1.2f);
+add_collider(scene, -2.0f, 4.6f, 1.0f, 1.0f);
 
 
-/* Kozep / nagyobb terem */
-add_plant_capsule(scene, 4.5f, 0.0f, 5.2f, 0.0f, 0.5f);
-add_collider(scene, 4.5f, 5.2f, 1.2f, 1.2f);
+add_plant_capsule(scene, 4.8f, 0.0f, 5.0f, 0.0f, 0.5f);
+add_collider(scene, 4.8f, 5.0f, 1.0f, 1.0f);
 
-add_plant_capsule(scene, 6.7f, 0.0f, 8.5f, 90.0f, 0.5f);
-add_collider(scene, 6.7f, 8.5f, 1.2f, 1.2f);
-
-
-/* Jobb felso / latvanyos disz */
-add_plant_capsule(scene, 10.0f, 0.0f, 14.0f, 180.0f, 0.5f);
-add_collider(scene, 10.0f, 14.0f, 1.2f, 1.2f);
-
-/* el volt tul kozel a 12.2, 16.6 crate-hez */
-add_plant_capsule(scene, 13.8f, 0.0f, 17.0f, 90.0f, 0.5f);
-add_collider(scene, 13.8f, 17.0f, 1.2f, 1.2f);
-
-/* el volt tul kozel a 15.8, 13.2 crate-hez */
-add_plant_capsule(scene, 17.0f, 0.0f, 15.5f, 0.0f, 0.5f);
-add_collider(scene, 17.0f, 15.5f, 1.2f, 1.2f);
-
-
-/* Jobb also / raktar disz */
-add_plant_capsule(scene, 10.0f, 0.0f, -15.0f, 180.0f, 0.5f);
-add_collider(scene, 10.0f, -15.0f, 1.2f, 1.2f);
-
-add_plant_capsule(scene, 15.5f, 0.0f, -12.0f, 90.0f, 0.5f);
-add_collider(scene, 15.5f, -12.0f, 1.2f, 1.2f);
-
-
-/* Plusz plant capsule-ok, hogy szinesebb legyen */
-add_plant_capsule(scene, -17.0f, 0.0f, 15.2f, 0.0f, 0.5f);
-add_collider(scene, -17.0f, 15.2f, 1.2f, 1.2f);
-
-add_plant_capsule(scene, -6.0f, 0.0f, 16.5f, 90.0f, 0.5f);
-add_collider(scene, -6.0f, 16.5f, 1.2f, 1.2f);
+add_plant_capsule(scene, 6.8f, 0.0f, 7.6f, 90.0f, 0.5f);
+add_collider(scene, 6.8f, 7.6f, 1.0f, 1.0f);
 
 add_plant_capsule(scene, 2.0f, 0.0f, -2.8f, 180.0f, 0.5f);
-add_collider(scene, 2.0f, -2.8f, 1.2f, 1.2f);
+add_collider(scene, 2.0f, -2.8f, 1.0f, 1.0f);
 
-add_plant_capsule(scene, 14.5f, 0.0f, 2.0f, 90.0f, 0.5f);
-add_collider(scene, 14.5f, 2.0f, 1.2f, 1.2f);
-    
-    add_generator(scene, -15.0f, -11.0f);   /* Z4 */
-    add_generator(scene, -18.6f,   3.0f);   /* A5 */
-    add_generator(scene, -18.5f,  18.2f);   /* B5 */
+add_plant_capsule(scene, 13.0f, 0.0f, 1.2f, 90.0f, 0.5f);
+add_collider(scene, 13.0f, 1.2f, 1.0f, 1.0f);
 
-/* Generator colliderjei */
-    add_collider(scene, -15.0f, -11.0f, 1.2f, 1.2f);
-    add_collider(scene, -18.6f,   3.0f, 1.2f, 1.2f);
-    add_collider(scene, -18.5f,  18.2f, 1.2f, 1.2f);
+
+add_plant_capsule(scene, 10.0f, 0.0f, 14.0f, 180.0f, 0.5f);
+add_collider(scene, 10.0f, 14.0f, 1.0f, 1.0f);
+
+add_plant_capsule(scene, 14.6f, 0.0f, 17.2f, 90.0f, 0.5f);
+add_collider(scene, 14.6f, 17.2f, 1.0f, 1.0f);
+
+add_plant_capsule(scene, 15.5f, 0.0f, 16.6f, 0.0f, 0.5f);
+add_collider(scene, 15.5f, 16.6f, 1.0f, 1.0f);
+
+
+add_plant_capsule(scene, 10.0f, 0.0f, -15.0f, 180.0f, 0.5f);
+add_collider(scene, 10.0f, -15.0f, 1.0f, 1.0f);
+
+add_plant_capsule(scene, 18.0f, 0.0f, -14.0f, 90.0f, 0.5f);
+add_collider(scene, 18.0f, -14.0f, 1.0f, 1.0f);
+
+
+add_plant_capsule(scene, -6.0f, 0.0f, 16.5f, 90.0f, 0.5f);
+add_collider(scene, -6.0f, 16.5f, 1.0f, 1.0f);
+
+add_plant_capsule(scene, -17.0f, 0.0f, 14.4f, 0.0f, 0.5f);
+add_collider(scene, -17.0f, 14.4f, 1.0f, 1.0f);
+
 
 /* =========================
-   CRATE-EK - JAVITOTT ELRENDEZES
-   Geogebra szakaszokat figyelembe veve
-   doboz kb. 1.6 x 1.6
-   collider = 1.6 x 1.6
-   scale = 0.01f
+   GENERATOROK - JAVITOTT HELYEK
    ========================= */
 
-/* Bal also sarok / raktar */
+/* Bal also / raktar resz */
+add_generator(scene, -15.0f, -11.0f);
+add_collider(scene, -15.0f, -11.0f, 1.2f, 1.2f);
+
+/* Kezdotol jobbra, meg eggyel jobb oldali also szoba */
+add_generator(scene, 10.5f, -16.5f);
+add_collider(scene, 10.5f, -16.5f, 1.2f, 1.2f);
+
+/* Exit bal oldala, falbol kihuzva */
+add_generator(scene, -6.2f, 18.0f);
+add_collider(scene, -6.2f, 18.0f, 1.2f, 1.2f);
+
 add_crate(scene, -18.7f, 0.7f, -18.7f, 0.0f, 0.01f);
 add_collider(scene, -18.7f, -18.7f, 1.6f, 1.6f);
+
+add_crate(scene, -16.2f, 0.7f, -18.5f, 90.0f, 0.01f);
+add_collider(scene, -16.2f, -18.5f, 1.6f, 1.6f);
+add_crate(scene, -16.2f, 1.5f, -18.5f, 90.0f, 0.01f);
 
 add_crate(scene, -12.2f, 0.7f, -18.7f, 90.0f, 0.01f);
 add_collider(scene, -12.2f, -18.7f, 1.6f, 1.6f);
@@ -1585,50 +1702,45 @@ add_collider(scene, -12.2f, -18.7f, 1.6f, 1.6f);
 add_crate(scene, -18.7f, 0.7f, -11.5f, 0.0f, 0.01f);
 add_collider(scene, -18.7f, -11.5f, 1.6f, 1.6f);
 
-/* dupla rakas, bal also belso resz */
 add_crate(scene, -13.0f, 0.7f, -12.2f, 90.0f, 0.01f);
 add_collider(scene, -13.0f, -12.2f, 1.6f, 1.6f);
 add_crate(scene, -13.0f, 1.5f, -12.2f, 90.0f, 0.01f);
 
-
-/* Bal kozep / fal melletti disz */
-/* ez korabban a generatorra logott, ezert at lett rakva */
-add_crate(scene, -18.7f, 0.7f, 5.2f, 0.0f, 0.01f);
-add_collider(scene, -18.7f, 5.2f, 1.6f, 1.6f);
-
-/* ez korabban pontosan egy planten volt, kicsit lentebb rakva */
-add_crate(scene, -14.0f, 0.7f, 2.8f, 90.0f, 0.01f);
-add_collider(scene, -14.0f, 2.8f, 1.6f, 1.6f);
+add_crate(scene, -11.8f, 0.7f, -15.0f, 0.0f, 0.01f);
+add_collider(scene, -11.8f, -15.0f, 1.6f, 1.6f);
 
 
-/* Kozep-bal / nagyobb terem szelen */
+add_crate(scene, -18.7f, 0.7f, 7.2f, 0.0f, 0.01f);
+add_collider(scene, -18.7f, 7.2f, 1.6f, 1.6f);
+
+add_crate(scene, -11.8f, 0.7f, 2.8f, 90.0f, 0.01f);
+add_collider(scene, -11.8f, 2.8f, 1.6f, 1.6f);
+
 add_crate(scene, -8.0f, 0.7f, 6.2f, 0.0f, 0.01f);
 add_collider(scene, -8.0f, 6.2f, 1.6f, 1.6f);
 
 add_crate(scene, -3.5f, 0.7f, 7.2f, 90.0f, 0.01f);
 add_collider(scene, -3.5f, 7.2f, 1.6f, 1.6f);
 
-
-/* Also kozep / starttol jobbra, falaktol tavolabb */
 add_crate(scene, 3.5f, 0.7f, -13.0f, 0.0f, 0.01f);
 add_collider(scene, 3.5f, -13.0f, 1.6f, 1.6f);
 
 add_crate(scene, 4.0f, 0.7f, -7.0f, 90.0f, 0.01f);
 add_collider(scene, 4.0f, -7.0f, 1.6f, 1.6f);
 
-
-/* Jobb also / raktar */
 add_crate(scene, 8.7f, 0.7f, -18.7f, 0.0f, 0.01f);
 add_collider(scene, 8.7f, -18.7f, 1.6f, 1.6f);
 
 add_crate(scene, 12.0f, 0.7f, -13.5f, 90.0f, 0.01f);
 add_collider(scene, 12.0f, -13.5f, 1.6f, 1.6f);
 
+add_crate(scene, 15.5f, 0.7f, -15.0f, 90.0f, 0.01f);
+add_collider(scene, 15.5f, -15.0f, 1.6f, 1.6f);
+add_crate(scene, 15.5f, 1.5f, -15.0f, 90.0f, 0.01f);
+
 add_crate(scene, 16.7f, 0.7f, -11.5f, 0.0f, 0.01f);
 add_collider(scene, 16.7f, -11.5f, 1.6f, 1.6f);
 
-
-/* Jobb kozep / gepterem */
 add_crate(scene, 11.7f, 0.7f, 2.5f, 0.0f, 0.01f);
 add_collider(scene, 11.7f, 2.5f, 1.6f, 1.6f);
 
@@ -1638,36 +1750,17 @@ add_collider(scene, 16.7f, 5.5f, 1.6f, 1.6f);
 add_crate(scene, 12.0f, 0.7f, 7.8f, 0.0f, 0.01f);
 add_collider(scene, 12.0f, 7.8f, 1.6f, 1.6f);
 
+add_crate(scene, 9.0f, 0.7f, 11.5f, 0.0f, 0.01f);
+add_collider(scene, 9.0f, 11.5f, 1.6f, 1.6f);
 
-/* Jobb felso / fal melletti, de nem falon at */
 add_crate(scene, 15.8f, 0.7f, 13.2f, 0.0f, 0.01f);
 add_collider(scene, 15.8f, 13.2f, 1.6f, 1.6f);
 
-add_crate(scene, 12.2f, 0.7f, 16.6f, 90.0f, 0.01f);
-add_collider(scene, 12.2f, 16.6f, 1.6f, 1.6f);
+add_crate(scene, 17.4f, 0.7f, 17.2f, 90.0f, 0.01f);
+add_collider(scene, 17.4f, 17.2f, 1.6f, 1.6f);
 
-
-/* Felso kozep / exit korul, de nem az ajto elott */
 add_crate(scene, 7.5f, 0.7f, 15.5f, 0.0f, 0.01f);
 add_collider(scene, 7.5f, 15.5f, 1.6f, 1.6f);
-
-
-/* Plusz crate-ek hasonlo, biztonsagos helyekre */
-add_crate(scene, -16.2f, 0.7f, -18.5f, 90.0f, 0.01f);
-add_collider(scene, -16.2f, -18.5f, 1.6f, 1.6f);
-
-add_crate(scene, -16.2f, 1.5f, -18.5f, 90.0f, 0.01f);
-
-add_crate(scene, -11.8f, 0.7f, -15.0f, 0.0f, 0.01f);
-add_collider(scene, -11.8f, -15.0f, 1.6f, 1.6f);
-
-add_crate(scene, 15.5f, 0.7f, -15.0f, 90.0f, 0.01f);
-add_collider(scene, 15.5f, -15.0f, 1.6f, 1.6f);
-
-add_crate(scene, 15.5f, 1.5f, -15.0f, 90.0f, 0.01f);
-
-add_crate(scene, 9.0f, 0.7f, 11.5f, 0.0f, 0.01f);
-add_collider(scene, 9.0f, 11.5f, 1.6f, 1.6f);
 }
 
 void update_scene(Scene* scene, double delta_time, float player_x, float player_z)
@@ -1699,7 +1792,7 @@ void update_scene(Scene* scene, double delta_time, float player_x, float player_
     for (i = 0; i < scene->drone_count; ++i) {
     update_drone(scene, &scene->drones[i], i, delta_time);
 
-    if (is_player_detected_by_drone(&scene->drones[i], player_x, player_z)) {
+    if (is_player_detected_by_drone(scene, &scene->drones[i], player_x, player_z))  {
         scene->game_over = true;
         printf("GAME OVER: Drone %d detected the player!\n", i + 1);
         return;
@@ -1759,12 +1852,9 @@ void update_scene(Scene* scene, double delta_time, float player_x, float player_
 void render_scene(const Scene* scene)
 {
     int i;
-
-    //draw_ceiling(scene->floor_size, scene->wall_texture);
     draw_floor(scene->floor_size, scene->floor_texture);
     draw_ceiling(scene->floor_size, scene->ceiling_texture);
 
-    /* 0-3: kulso falak, 4-6: belso falak */
     for (i = 0; i < scene->wall_count; ++i) {
     draw_wall(
         scene->colliders[i].x,
