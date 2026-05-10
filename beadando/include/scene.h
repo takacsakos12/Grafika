@@ -14,7 +14,7 @@
 #define SPARK_SOURCE_COUNT 2
 #define MAX_INNER_DOORS 8
 #define MAX_CRATES 32
-#define MAX_PLANT_CAPSULES 32
+#define MAX_PLANT_CAPSULES 40
 
 typedef struct Collider
 {

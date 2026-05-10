@@ -279,9 +279,7 @@ static void add_plant_capsule(
     float y,
     float z,
     float rotation_y,
-    float scale,
-    float collider_width,
-    float collider_depth
+    float scale
 )
 {
     if (scene->plant_capsule_count >= MAX_PLANT_CAPSULES) {
@@ -293,9 +291,7 @@ static void add_plant_capsule(
     scene->plant_capsules[scene->plant_capsule_count].z = z;
     scene->plant_capsules[scene->plant_capsule_count].rotation_y = rotation_y;
     scene->plant_capsules[scene->plant_capsule_count].scale = scale;
-
-    scene->plant_capsules[scene->plant_capsule_count].collider_index = scene->collider_count;
-    add_collider(scene, x, z, collider_width, collider_depth);
+    scene->plant_capsules[scene->plant_capsule_count].collider_index = -1;
 
     scene->plant_capsule_count++;
 }
@@ -1629,51 +1625,51 @@ add_collider(scene, 13.0f, 16.0f, 1.0f, 1.0f);
 add_crate(scene, 13.0f, 1.5f, 16.0f, 90.0f, 0.01f);
 
 /* =========================
-   PLANT CAPSULE DEKORACIOK COLLIDERREL
-   scale = 0.01f
-   collider kb. 0.8 x 0.8
+   PLANT CAPSULE DEKORACIOK
+   collider nelkul
+   scale = 2.0f
    ========================= */
 
 /* Bal felso / labor resz */
-add_plant_capsule(scene, -17.0f, 0.0f, 14.0f, 0.0f, 10.0f, 0.8f, 0.8f);
-add_plant_capsule(scene, -10.5f, 0.0f, 17.5f, 90.0f, 10.0f, 0.8f, 0.8f);
-add_plant_capsule(scene, -6.5f, 0.0f, 16.5f, 180.0f, 10.0f, 0.8f, 0.8f);
-add_plant_capsule(scene, -15.0f, 0.0f, 18.0f, 270.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, -17.0f, 0.0f, 14.0f, 0.0f, 2.0f);
+add_plant_capsule(scene, -10.5f, 0.0f, 17.5f, 90.0f, 2.0f);
+add_plant_capsule(scene, -6.5f, 0.0f, 16.5f, 180.0f, 2.0f);
+add_plant_capsule(scene, -15.0f, 0.0f, 18.0f, 270.0f, 2.0f);
 
 /* Bal kozep / szikrazo resz */
-add_plant_capsule(scene, -15.5f, 0.0f, 4.5f, 0.0f, 10.0f, 0.8f, 0.8f);
-add_plant_capsule(scene, -18.0f, 0.0f, 6.8f, 90.0f, 10.0f, 0.8f, 0.8f);
-add_plant_capsule(scene, -13.5f, 0.0f, 8.2f, 180.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, -15.5f, 0.0f, 4.5f, 0.0f, 2.0f);
+add_plant_capsule(scene, -18.0f, 0.0f, 6.8f, 90.0f, 2.0f);
+add_plant_capsule(scene, -13.5f, 0.0f, 8.2f, 180.0f, 2.0f);
 
 /* Bal also / raktar kornyeke */
-add_plant_capsule(scene, -18.0f, 0.0f, -13.0f, 0.0f, 10.0f, 0.8f, 0.8f);
-add_plant_capsule(scene, -12.5f, 0.0f, -12.5f, 90.0f, 10.0f, 0.8f, 0.8f);
-add_plant_capsule(scene, -18.0f, 0.0f, -8.5f, 180.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, -18.0f, 0.0f, -13.0f, 0.0f, 2.0f);
+add_plant_capsule(scene, -12.5f, 0.0f, -12.5f, 90.0f, 2.0f);
+add_plant_capsule(scene, -18.0f, 0.0f, -8.5f, 180.0f, 2.0f);
 
 /* Felso kozep */
-add_plant_capsule(scene, -3.5f, 0.0f, 16.0f, 0.0f, 10.0f, 0.8f, 0.8f);
-add_plant_capsule(scene, 2.5f, 0.0f, 16.5f, 90.0f, 10.0f, 0.8f, 0.8f);
-add_plant_capsule(scene, 7.5f, 0.0f, 15.0f, 180.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, -3.5f, 0.0f, 16.0f, 0.0f, 2.0f);
+add_plant_capsule(scene, 2.5f, 0.0f, 16.5f, 90.0f, 2.0f);
+add_plant_capsule(scene, 7.5f, 0.0f, 15.0f, 180.0f, 2.0f);
 
 /* Jobb felso */
-add_plant_capsule(scene, 8.5f, 0.0f, 14.5f, 90.0f, 10.0f, 0.8f, 0.8f);
-add_plant_capsule(scene, 16.0f, 0.0f, 13.0f, 0.0f, 10.0f, 0.8f, 0.8f);
-add_plant_capsule(scene, 14.5f, 0.0f, 17.0f, 180.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, 8.5f, 0.0f, 14.5f, 90.0f, 2.0f);
+add_plant_capsule(scene, 16.0f, 0.0f, 13.0f, 0.0f, 2.0f);
+add_plant_capsule(scene, 14.5f, 0.0f, 17.0f, 180.0f, 2.0f);
 
 /* Jobb kozep / gepterem */
-add_plant_capsule(scene, 14.5f, 0.0f, 2.0f, 180.0f, 10.0f, 0.8f, 0.8f);
-add_plant_capsule(scene, 11.5f, 0.0f, 5.5f, 90.0f, 10.0f, 0.8f, 0.8f);
-add_plant_capsule(scene, 16.5f, 0.0f, 6.5f, 270.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, 14.5f, 0.0f, 2.0f, 180.0f, 2.0f);
+add_plant_capsule(scene, 11.5f, 0.0f, 5.5f, 90.0f, 2.0f);
+add_plant_capsule(scene, 16.5f, 0.0f, 6.5f, 270.0f, 2.0f);
 
 /* Jobb also */
-add_plant_capsule(scene, 10.5f, 0.0f, -13.5f, 0.0f, 10.0f, 0.8f, 0.8f);
-add_plant_capsule(scene, 16.5f, 0.0f, -12.0f, 90.0f, 10.0f, 0.8f, 0.8f);
-add_plant_capsule(scene, 18.0f, 0.0f, -8.5f, 180.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, 10.5f, 0.0f, -13.5f, 0.0f, 2.0f);
+add_plant_capsule(scene, 16.5f, 0.0f, -12.0f, 90.0f, 2.0f);
+add_plant_capsule(scene, 18.0f, 0.0f, -8.5f, 180.0f, 2.0f);
 
 /* Kozepso terem */
-add_plant_capsule(scene, 4.0f, 0.0f, 6.0f, 90.0f, 10.0f, 0.8f, 0.8f);
-add_plant_capsule(scene, -3.5f, 0.0f, 6.5f, 180.0f, 10.0f, 0.8f, 0.8f);
-add_plant_capsule(scene, 2.0f, 0.0f, -2.5f, 270.0f, 10.0f, 0.8f, 0.8f);
+add_plant_capsule(scene, 4.0f, 0.0f, 6.0f, 90.0f, 2.0f);
+add_plant_capsule(scene, -3.5f, 0.0f, 6.5f, 180.0f, 2.0f);
+add_plant_capsule(scene, 2.0f, 0.0f, -2.5f, 270.0f, 2.0f);
 }
 
 void update_scene(Scene* scene, double delta_time, float player_x, float player_z)
@@ -1816,6 +1812,18 @@ void render_scene(const Scene* scene)
         scene->crates[i].scale
     );
     }
+
+    for (i = 0; i < scene->plant_capsule_count; ++i) {
+    draw_static_model(
+        &scene->plant_capsule_model,
+        scene->plant_capsule_texture,
+        scene->plant_capsules[i].x,
+        scene->plant_capsules[i].y,
+        scene->plant_capsules[i].z,
+        scene->plant_capsules[i].rotation_y,
+        scene->plant_capsules[i].scale
+    );
+}
 }
 
 void destroy_scene(Scene* scene)
