@@ -168,19 +168,40 @@ typedef struct Scene
 
 } Scene;
 
+/* Inicializalja a palyat, betolti a texturakat, modelleket, falakat es objektumokat. */
 void init_scene(Scene* scene);
+
+/* Frissiti a palya allapotat: ajtok, dronok, reszecskek, gyozelem/vereseg ellenorzes. */
 void update_scene(Scene* scene, double delta_time, float player_x, float player_z);
+
+/* Kirajzolja a teljes palyat: padlo, falak, ajtok, objektumok, dronok es effektek. */
 void render_scene(const Scene* scene);
 
+/* Felszabaditja a scene altal hasznalt OpenGL texturakat es modelleket. */
 void destroy_scene(Scene* scene);
 
+/* Megnezi, hogy a jatekos kor alaku collidere utkozik-e valamelyik aktiv colliderrel. */
 bool check_collision(const Scene* scene, float x, float z, float radius);
+
+/* Kezeli az interakciot: ajtok nyitasa/csukasa es generatorok aktivalasa. */
 void interact_scene(Scene* scene, float player_x, float player_z);
+
+/* Beallitja a palya alap vilagitasat az aktualis fenyerosseg alapjan. */
 void set_scene_lighting(const Scene* scene);
+
+/* Novel vagy csokkenti a palya fenyerosseget adott mertekkel. */
 void change_scene_brightness(Scene* scene, float amount);
+
+/* Be- vagy kikapcsolja a hard mode allapotot. */
 void toggle_hard_mode(Scene* scene);
+
+/* Hard mode eseten kodot allit be, egyebkent kikapcsolja azt. */
 void apply_scene_fog(const Scene* scene);
+
+/* Ujrainditja a jatek allapotat: ajtok, generatorok, dronok, effektek visszaallitasa. */
 void reset_scene(Scene* scene);
+
+/* Megnezi, hogy a jatekos az exit ponton all-e, miutan az exit ajto mar nyitva van. */
 bool is_player_at_exit(const Scene* scene, float player_x, float player_z);
 
 #endif /* SCENE_H */

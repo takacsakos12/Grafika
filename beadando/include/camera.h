@@ -15,8 +15,10 @@ typedef struct Camera
     bool is_preview_visible;
 } Camera;
 
+/* Kamera alaphelyzetbe allitasa. */
 void init_camera(Camera* camera);
 
+/* Kamera mozgatasa a bemenetek es az utkozesvizsgalat alapjan. */
 void update_camera(
     Camera* camera,
     const Scene* scene,
@@ -27,8 +29,13 @@ void update_camera(
     bool move_right
 );
 
+/* Kamera nezeti matrixanak beallitasa OpenGL-ben. */
 void set_view(const Camera* camera);
+
+/* Kamera forgatasa eger mozgas alapjan. */
 void rotate_camera(Camera* camera, double horizontal, double vertical);
+
+/* Kamera visszaallitasa a kezdo pozicioba. */
 void reset_camera(Camera* camera);
 
 #endif /* CAMERA_H */
